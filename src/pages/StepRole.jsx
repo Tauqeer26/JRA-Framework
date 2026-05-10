@@ -15,7 +15,7 @@ export default function StepRole({ onNext, initial, onBackToIntro }) {
   }
 
   return (
-    <div className="fade-up" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+    <div className="fade-up step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 6, flexWrap: 'wrap' }}>
         <p className="label" style={{ marginBottom: 0 }}>STEP 1 — IDENTIFY YOUR ROLE</p>
         <button className="btn-ghost" onClick={onBackToIntro} style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem' }}>
@@ -50,7 +50,7 @@ export default function StepRole({ onNext, initial, onBackToIntro }) {
 
         <div>
           <label className="label">INDUSTRY</label>
-          <div style={{
+          <div className="step-role-grid" style={{
             display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 8,
           }}>
             {INDUSTRIES.map(ind => (

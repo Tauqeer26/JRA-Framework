@@ -11,9 +11,9 @@ export default function IntroPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
       <Topbar activeStep={-1} />
-      <main style={{ maxWidth: 1020, margin: '0 auto', padding: '1.75rem 1.5rem 2.25rem' }}>
-        <section className="card" style={{ padding: '1.5rem 1.5rem 1.35rem', minHeight: 'calc(100vh - 8rem)', display: 'flex', flexDirection: 'column' }}>
-          <div style={{
+      <main className="intro-page" style={{ maxWidth: 1020, margin: '0 auto', padding: '1.75rem 1.5rem 2.25rem' }}>
+        <section className="card intro-shell" style={{ padding: '1.5rem 1.5rem 1.35rem', minHeight: 'calc(100vh - 8rem)', display: 'flex', flexDirection: 'column' }}>
+          <div className="intro-hero" style={{
             position: 'relative',
             display: 'flex',
             justifyContent: 'space-between',
@@ -46,6 +46,7 @@ export default function IntroPage() {
 
             <button
               className="btn-ghost"
+              className="btn-ghost intro-cta"
               onClick={handleContinue}
               style={{
                 position: 'absolute',
@@ -63,7 +64,7 @@ export default function IntroPage() {
             </button>
           </div>
 
-          <div style={{
+          <div className="intro-grid intro-grid-2" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
             gap: 12,
@@ -94,7 +95,7 @@ export default function IntroPage() {
             </div>
           </div>
 
-          <div style={{
+          <div className="intro-grid intro-grid-3" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
             gap: 12,
@@ -126,7 +127,7 @@ export default function IntroPage() {
             ))}
           </div>
 
-          <div style={{
+          <div className="intro-grid intro-grid-4" style={{
             display: 'grid',
             gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
             gap: 12,

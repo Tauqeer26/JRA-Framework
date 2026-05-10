@@ -84,7 +84,7 @@ function TaskCard({ t }) {
 export default function StepReport({ report, loading, error, roleInfo, onRetry, onEditTasks, onStartOver }) {
   if (loading) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+      <div className="step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
         <p className="label">STEP 3 — YOUR FULL SUMMARY</p>
         <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 500, color: 'var(--text)', marginBottom: '2rem' }}>
           Building your summary
@@ -99,7 +99,7 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
 
   if (error || !report) {
     return (
-      <div style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
+      <div className="step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
         <div className="card" style={{ padding: '2.5rem', textAlign: 'center' }}>
           <p style={{ fontSize: '0.75rem', letterSpacing: '0.1em', color: 'rgba(192,57,43,0.8)', marginBottom: 8 }}>SUMMARY GENERATION FAILED</p>
           <p style={{ color: 'var(--text2)', fontSize: '0.9rem', marginBottom: 8 }}>
@@ -124,7 +124,7 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
   const rc = RISK_CONFIG[report.overall_risk] || RISK_CONFIG['medium']
 
   return (
-    <div className="fade-up" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+    <div className="fade-up step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
       <p className="label">STEP 3 — YOUR FULL SUMMARY</p>
       <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 500, color: 'var(--text)', marginBottom: '0.25rem' }}>
         AI Risk & Future-Proofing Summary
@@ -170,7 +170,7 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
         <div className="card" style={{ marginBottom: '1rem' }}>
           <p className="label" style={{ marginBottom: '1rem' }}>HOW TO FUTURE-PROOF YOUR ROLE</p>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: '1.5rem' }}>
+          <div className="future-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: '1.5rem' }}>
             {[
               { key: 'immediate',  label: 'Do now',          color: '#C0392B' },
               { key: 'short_term', label: 'Next 1–2 years',  color: '#D4820A' },
@@ -194,7 +194,7 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
           </div>
 
           {report.future_proof_guide.skills_to_build?.length > 0 && (
-            <div style={{ marginBottom: '1.25rem' }}>
+            <div className="skills-wrap" style={{ marginBottom: '1.25rem' }}>
               <p className="label" style={{ marginBottom: 8 }}>SKILLS TO BUILD</p>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                 {report.future_proof_guide.skills_to_build.map((s, i) => (
@@ -211,7 +211,7 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
           {report.future_proof_guide.top_tools?.length > 0 && (
             <div>
               <p className="label" style={{ marginBottom: 8 }}>TOP AI TOOLS FOR YOUR ROLE</p>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
+              <div className="tools-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 8 }}>
                 {report.future_proof_guide.top_tools.map((tool, i) => (
                   <a key={i} href={tool.url} target="_blank" rel="noopener noreferrer" style={{
                     padding: '0.875rem', borderRadius: 10, textDecoration: 'none',

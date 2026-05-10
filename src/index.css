@@ -105,3 +105,181 @@ a { color: inherit; }
   animation: spin 0.8s linear infinite;
   display: inline-block;
 }
+
+@media (max-width: 900px) {
+  .topbar {
+    padding: 0.85rem 1rem;
+  }
+
+  .topbar-brand {
+    left: 1rem !important;
+    gap: 6px !important;
+    flex-direction: column;
+    align-items: flex-start !important;
+  }
+
+  .topbar-brand span:last-child {
+    font-size: 0.62rem !important;
+    letter-spacing: 0.1em !important;
+  }
+
+  .topbar-steps {
+    position: static !important;
+    transform: none !important;
+    left: auto !important;
+    width: 100%;
+    justify-content: flex-end;
+    gap: 4px !important;
+    flex-wrap: wrap;
+    padding-left: 8rem;
+  }
+
+  .topbar-step {
+    gap: 4px !important;
+  }
+
+  .topbar-step-label {
+    font-size: 9px !important;
+    white-space: nowrap;
+  }
+
+  .topbar-step-circle {
+    width: 20px !important;
+    height: 20px !important;
+  }
+
+  .intro-page,
+  .step-page {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+
+  .intro-shell {
+    min-height: auto !important;
+  }
+
+  .intro-hero {
+    padding-right: 0 !important;
+    margin-bottom: 1rem !important;
+    flex-direction: column;
+  }
+
+  .intro-hero > div {
+    max-width: 100% !important;
+  }
+
+  .intro-cta {
+    position: static !important;
+    min-width: 0 !important;
+    width: 100%;
+    margin-top: 0.75rem !important;
+  }
+
+  .intro-grid,
+  .future-grid,
+  .tools-grid,
+  .step-role-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .task-add-row,
+  .task-actions {
+    flex-direction: column;
+  }
+
+  .task-add-row button,
+  .task-add-row input,
+  .task-actions button {
+    width: 100%;
+  }
+
+  .risk-legend {
+    display: none;
+  }
+
+  .card {
+    padding: 1rem;
+  }
+}
+
+@media (max-width: 560px) {
+  .topbar {
+    min-height: auto !important;
+    padding-top: 0.75rem;
+    padding-bottom: 0.75rem;
+  }
+
+  .topbar-brand {
+    position: static !important;
+    margin-right: auto;
+  }
+
+  .topbar-steps {
+    margin-top: 0.6rem;
+    padding-left: 0;
+    justify-content: space-between;
+    gap: 0.25rem !important;
+  }
+
+  .topbar-step {
+    gap: 0.25rem !important;
+    flex: 1 1 auto;
+    justify-content: center;
+    min-width: 0;
+  }
+
+  .topbar-step-label {
+    display: inline;
+    font-size: 9px !important;
+    letter-spacing: 0.01em;
+  }
+
+  .topbar-step-circle {
+    width: 18px !important;
+    height: 18px !important;
+    font-size: 9px !important;
+  }
+
+  .topbar-step-connector {
+    display: none;
+  }
+
+  .intro-page,
+  .step-page {
+    padding-left: 0.75rem !important;
+    padding-right: 0.75rem !important;
+  }
+
+  .intro-shell {
+    padding: 1rem !important;
+  }
+
+  .intro-hero h1 {
+    font-size: clamp(1.7rem, 8vw, 2.2rem) !important;
+  }
+
+  .intro-hero p {
+    font-size: 0.9rem !important;
+  }
+
+  .btn-primary,
+  .btn-ghost {
+    width: 100%;
+  }
+
+  .step-page h1,
+  .intro-shell h1 {
+    font-size: clamp(1.6rem, 6vw, 2rem) !important;
+  }
+
+  .task-actions,
+  .task-add-row {
+    gap: 0.75rem;
+  }
+
+  .future-grid > div,
+  .intro-grid > div,
+  .tools-grid > a {
+    min-width: 0 !important;
+  }
+}

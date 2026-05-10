@@ -20,7 +20,7 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
   }
 
   return (
-    <div className="fade-up" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
+    <div className="fade-up step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
       <p className="label">STEP 2 — REVIEW & EDIT YOUR TASKS</p>
       <h1 style={{
         fontFamily: 'var(--font-display)', fontSize: '2rem',
@@ -82,7 +82,7 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
           </div>
 
           {/* Add task */}
-          <div style={{ display: 'flex', gap: 8, marginBottom: '2rem' }}>
+          <div className="task-add-row" style={{ display: 'flex', gap: 8, marginBottom: '2rem' }}>
             <input className="input" style={{ flex: 1 }}
               placeholder="Add a task not in the list..."
               value={newTask} onChange={e => setNewTask(e.target.value)}
@@ -91,7 +91,7 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
             <button className="btn-ghost" onClick={addTask}
               style={{ whiteSpace: 'nowrap', padding: '0.75rem 1.25rem' }}>+ Add</button>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="task-actions" style={{ display: 'flex', gap: 10 }}>
             <button className="btn-ghost" onClick={onBack}>← Back</button>
             <button className="btn-primary" onClick={onNext} disabled={tasks.length === 0}
               style={{ padding: '0.875rem 2rem', fontSize: '0.95rem' }}>
