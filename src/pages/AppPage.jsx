@@ -1,6 +1,5 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useAuth } from '../context/AuthContext'
 import { callClaude, extractJSON } from '../lib'
 import { Topbar, RiskLegend } from '../components/UI'
 import StepRole from './StepRole'
@@ -8,9 +7,7 @@ import StepTasks from './StepTasks'
 import StepReport from './StepReport'
 
 export default function AppPage() {
-  const { user, logout } = useAuth()
   const navigate = useNavigate()
-
   const [step, setStep]           = useState(0)
   const [roleInfo, setRoleInfo]   = useState(null)
   const [tasks, setTasks]         = useState([])
@@ -18,11 +15,6 @@ export default function AppPage() {
   const [report, setReport]       = useState(null)
   const [loadingReport, setLoadingReport] = useState(false)
   const [reportError, setReportError]     = useState('')
-
-  function handleLogout() {
-    logout()
-    navigate('/')
-  }
 
   // Step 0 → 1: generate tasks
   async function handleRoleNext(info) {
@@ -33,7 +25,7 @@ export default function AppPage() {
       const raw = await callClaude(
         'You are an AI workforce analyst. Return ONLY valid JSON — no markdown, no explanation.',
         `Job title: "${info.jobTitle}", Industry: "${info.industryFinal}".
-Generate a realistic list of 10-14 day-to-day tasks this person does.
+Generate a realistic list of 6-8 day-to-day tasks this person does.
 For each task assign:
 - task_type: one of routine, repetitive, rule-based, creative, strategic, human-centred
 - risk: one of very-high, high, medium, low-med, low, very-low
@@ -49,7 +41,7 @@ Return ONLY a JSON array:
     } catch {
       setTasks([
         { task: 'Administrative tasks',         task_type: 'routine',       risk: 'very-high' },
-        { task: 'Repetitive reporting',          task_type: 'repetitive',    risk: 'very-high' },
+        { task: 'Repetitive summarising',         task_type: 'repetitive',    risk: 'very-high' },
         { task: 'Process-following work',        task_type: 'rule-based',    risk: 'high'      },
         { task: 'Creative problem solving',      task_type: 'creative',      risk: 'medium'    },
         { task: 'Strategic planning',            task_type: 'strategic',     risk: 'low-med'   },
@@ -75,30 +67,30 @@ Return ONLY a JSON array:
 Tasks:
 ${taskSummary}
 
-Return this JSON (keep strings concise, max 2 tools per task, max 5 top_tools):
+Return this JSON (moderately concise, max 2 tools per task, max 5 top_tools):
 {
   "overall_risk": "very-high|high|medium|low-med|low|very-low",
-  "summary": "2 sentences on overall AI exposure",
-  "industry_note": "1 sentence on AI dynamics in this industry",
+  "summary": "2-3 sentences on overall AI exposure",
+  "industry_note": "1-2 sentences on AI dynamics in this industry",
   "task_breakdown": [
     {
       "task": "exact task name",
       "risk": "very-high|high|medium|low-med|low|very-low",
-      "why": "1 short sentence why this risk level",
+      "why": "1-2 short sentences why this risk level",
       "timeline": "Now|1-2 yrs|3-5 yrs",
-      "action": "one specific action to take",
+      "action": "one specific action to take in 1-2 short sentences",
       "tools": [{"name":"Tool","purpose":"short phrase","url":"https://example.com"}]
     }
   ],
   "future_proof_guide": {
-    "immediate": ["3 short actions"],
-    "short_term": ["3 short actions"],
-    "long_term": ["3 short actions"],
-    "skills_to_build": ["4 skills"],
-    "top_tools": [{"name":"Tool","category":"cat","why":"1 sentence","url":"https://example.com"}]
+    "immediate": ["short actions"],
+    "short_term": ["short actions"],
+    "long_term": ["short actions"],
+    "skills_to_build": ["short skills"],
+    "top_tools": [{"name":"Tool","category":"cat","why":"1-2 short sentences","url":"https://example.com"}]
   }
 }
-Only return the JSON. Keep all strings short.`,
+Only return the JSON. Keep strings brief and practical, especially the future-proofing and tools sections.`,
         8000
       )
       const parsed = extractJSON(raw)
@@ -120,10 +112,10 @@ Only return the JSON. Keep all strings short.`,
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Topbar user={user} onLogout={handleLogout} step={step} />
+      <Topbar activeStep={step} />
 
       {step === 0 && (
-        <StepRole onNext={handleRoleNext} initial={roleInfo} />
+        <StepRole onNext={handleRoleNext} initial={roleInfo} onBackToIntro={() => navigate('/intro')} />
       )}
       {step === 1 && (
         <StepTasks
@@ -143,7 +135,7 @@ Only return the JSON. Keep all strings short.`,
         />
       )}
 
-      <RiskLegend />
+      {step === 2 && <RiskLegend />}
     </div>
   )
 }

@@ -5,10 +5,25 @@ import { URL } from 'node:url'
 
 loadEnvFile()
 
-const PORT = Number(process.env.API_PORT || 8787)
+const PORT = Number(process.env.PORT || process.env.API_PORT || 8787)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01'
+const DIST_DIR = path.resolve(process.cwd(), 'dist')
+const INDEX_FILE = path.join(DIST_DIR, 'index.html')
+
+const MIME_TYPES = {
+  '.html': 'text/html; charset=utf-8',
+  '.js': 'application/javascript; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.webp': 'image/webp',
+  '.ico': 'image/x-icon',
+}
 
 function loadEnvFile() {
   const envPath = path.resolve(process.cwd(), '.env')
@@ -47,6 +62,23 @@ function sendJson(res, statusCode, payload) {
     'Access-Control-Allow-Headers': 'Content-Type',
   })
   res.end(JSON.stringify(payload))
+}
+
+function sendFile(res, filePath) {
+  const ext = path.extname(filePath).toLowerCase()
+  const contentType = MIME_TYPES[ext] || 'application/octet-stream'
+
+  try {
+    const data = fs.readFileSync(filePath)
+    res.writeHead(200, {
+      'Content-Type': contentType,
+      'Cache-Control': ext === '.html' ? 'no-cache' : 'public, max-age=31536000, immutable',
+    })
+    res.end(data)
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' })
+    res.end('Not found')
+  }
 }
 
 function readJsonBody(req) {
@@ -92,6 +124,18 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (req.method !== 'POST' || url.pathname !== '/api/anthropic/messages') {
+    if (req.method === 'GET' && fs.existsSync(INDEX_FILE)) {
+      const assetPath = url.pathname === '/' ? INDEX_FILE : path.join(DIST_DIR, url.pathname)
+
+      if (url.pathname !== '/' && fs.existsSync(assetPath) && fs.statSync(assetPath).isFile()) {
+        sendFile(res, assetPath)
+        return
+      }
+
+      sendFile(res, INDEX_FILE)
+      return
+    }
+
     sendJson(res, 404, { error: 'Not found' })
     return
   }
@@ -105,6 +149,11 @@ const server = http.createServer(async (req, res) => {
 
   try {
     const body = await readJsonBody(req)
+    console.log('[API] /api/anthropic/messages request', {
+      max_tokens: body.max_tokens ?? 2000,
+      messages: Array.isArray(body.messages) ? body.messages.length : 0,
+    })
+
     const upstreamRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -129,8 +178,14 @@ const server = http.createServer(async (req, res) => {
       payload = { error: text || `Anthropic returned status ${upstreamRes.status}` }
     }
 
+    console.log('[API] /api/anthropic/messages response', {
+      status: upstreamRes.status,
+      ok: upstreamRes.ok,
+    })
+
     sendJson(res, upstreamRes.status, payload)
   } catch (error) {
+    console.error('[API] /api/anthropic/messages error', error)
     sendJson(res, 500, { error: error.message || 'Unexpected server error' })
   }
 })

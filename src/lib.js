@@ -15,6 +15,7 @@ export const INDUSTRIES = [
 ]
 
 export async function callClaude(systemPrompt, userPrompt, maxTokens = 2000) {
+  console.log('[API] callClaude request', { maxTokens })
   const res = await fetch('/api/anthropic/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -26,6 +27,7 @@ export async function callClaude(systemPrompt, userPrompt, maxTokens = 2000) {
   })
 
   const data = await res.json().catch(() => null)
+  console.log('[API] callClaude response', { status: res.status, ok: res.ok })
 
   if (!res.ok) {
     const message = data?.error || data?.message || `API error ${res.status}`

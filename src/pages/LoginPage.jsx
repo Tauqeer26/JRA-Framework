@@ -21,7 +21,7 @@ export default function LoginPage() {
     } else {
       ok = signup(name, email, password)
     }
-    if (ok) navigate('/app')
+    if (ok) navigate('/intro')
     setLoading(false)
   }
 
@@ -38,7 +38,7 @@ export default function LoginPage() {
       {/* Left panel — branding */}
       <div style={{
         flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center',
-        padding: '4rem', background: 'rgba(200,192,232,0.03)',
+        padding: '4rem', background: 'rgba(255,255,255,0.4)',
         borderRight: '0.5px solid var(--border)',
         position: 'relative', overflow: 'hidden',
       }} className="fade-in">
@@ -46,25 +46,25 @@ export default function LoginPage() {
         <div style={{
           position: 'absolute', top: '-80px', left: '-80px',
           width: 400, height: 400, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(200,192,232,0.06) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(107,95,209,0.11) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', bottom: '-60px', right: '-60px',
           width: 300, height: 300, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(200,192,232,0.04) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(240,179,82,0.09) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: '3rem' }}>
-            <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', color: 'var(--accent)', fontStyle: 'italic' }}>JRA</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text3)', letterSpacing: '0.14em', marginLeft: 10 }}>FRAMEWORK</span>
+            <span style={{ fontFamily: 'var(--font-body)', fontSize: '1.5rem', color: 'var(--accent)', fontStyle: 'normal', fontWeight: 700, letterSpacing: '0.16em' }}>JRF</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text3)', letterSpacing: '0.14em', marginLeft: 10 }}>JOB ROLE FORECAST</span>
           </div>
 
           <h1 style={{
             fontFamily: 'var(--font-display)', fontSize: 'clamp(2rem, 4vw, 3rem)',
-            fontWeight: 500, lineHeight: 1.15, color: '#f0eeff', marginBottom: '1.25rem',
+            fontWeight: 500, lineHeight: 1.15, color: 'var(--text)', marginBottom: '1.25rem',
           }}>
             Understand your<br />
             <em style={{ color: 'var(--accent)' }}>AI risk</em> before<br />
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </h1>
 
           <p style={{ color: 'var(--text2)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 380, marginBottom: '2.5rem' }}>
-            The JRA Framework analyses your job role task-by-task, assesses your exposure to AI automation, and gives you a personalised future-proofing plan.
+            JRF analyses your job role task-by-task, assesses your exposure to AI automation, and gives you a personalised future-proofing plan.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -85,16 +85,6 @@ export default function LoginPage() {
               <p key={i} style={{ fontSize: '0.85rem', color: 'var(--text3)', letterSpacing: '0.01em' }}>{item}</p>
             ))}
           </div>
-
-          {/* Demo credentials hint */}
-          <div style={{
-            marginTop: '3rem', padding: '0.875rem 1rem', borderRadius: 10,
-            border: '0.5px solid rgba(200,192,232,0.15)',
-            background: 'rgba(200,192,232,0.05)',
-          }}>
-            <p style={{ fontSize: '0.75rem', color: 'var(--text3)', marginBottom: 4, letterSpacing: '0.08em' }}>DEMO CREDENTIALS</p>
-            <p style={{ fontSize: '0.825rem', color: 'var(--text2)' }}>demo@jra.ai &nbsp;·&nbsp; demo1234</p>
-          </div>
         </div>
       </div>
 
@@ -106,14 +96,14 @@ export default function LoginPage() {
         <div className="fade-up">
           <h2 style={{
             fontFamily: 'var(--font-display)', fontSize: '1.75rem',
-            fontWeight: 500, color: '#f0eeff', marginBottom: '0.5rem',
+            fontWeight: 500, color: 'var(--text)', marginBottom: '0.5rem',
           }}>
             {mode === 'login' ? 'Welcome back' : 'Create account'}
           </h2>
           <p style={{ fontSize: '0.875rem', color: 'var(--text2)', marginBottom: '2rem' }}>
             {mode === 'login'
               ? 'Sign in to access your AI risk profile'
-              : 'Start your personalised JRA analysis'}
+              : 'Start your personalised JRF analysis'}
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>

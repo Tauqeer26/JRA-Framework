@@ -1,6 +1,5 @@
 import { useState } from 'react'
-import { RISK_CONFIG } from '../lib'
-import { RiskPill, Spinner } from '../components/UI'
+import { Spinner } from '../components/UI'
 
 export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, onNext }) {
   const [editingIdx, setEditingIdx] = useState(null)
@@ -19,16 +18,13 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
     setTasks(t => [...t, { task: newTask.trim(), task_type: 'routine', risk: 'medium' }])
     setNewTask('')
   }
-  function changeRisk(i, risk) {
-    setTasks(t => t.map((item, idx) => idx === i ? { ...item, risk } : item))
-  }
 
   return (
     <div className="fade-up" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
       <p className="label">STEP 2 — REVIEW & EDIT YOUR TASKS</p>
       <h1 style={{
         fontFamily: 'var(--font-display)', fontSize: '2rem',
-        fontWeight: 500, color: '#f0eeff', marginBottom: '0.25rem',
+        fontWeight: 500, color: 'var(--text)', marginBottom: '0.25rem',
       }}>Your task breakdown</h1>
       <p style={{ color: 'var(--text2)', fontSize: '0.875rem', marginBottom: '2rem' }}>
         <span style={{ color: 'var(--accent)' }}>{roleInfo.jobTitle}</span>
@@ -48,7 +44,7 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 10,
                 padding: '0.875rem 1rem', borderRadius: 10,
-                background: 'var(--bg3)', border: '0.5px solid var(--border)',
+                background: 'rgba(255,255,255,0.84)', border: '0.5px solid var(--border)',
                 transition: 'border-color 0.2s',
               }}>
                 {editingIdx === i ? (
@@ -68,16 +64,6 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
                   <>
                     <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--text)' }}>{t.task}</span>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
-                      <select value={t.risk} onChange={e => changeRisk(i, e.target.value)} style={{
-                        background: 'rgba(255,255,255,0.04)', border: '0.5px solid var(--border)',
-                        color: 'var(--text2)', borderRadius: 8, padding: '3px 6px',
-                        fontSize: 10, cursor: 'pointer',
-                      }}>
-                        {Object.entries(RISK_CONFIG).map(([k, v]) => (
-                          <option key={k} value={k}>{v.label}</option>
-                        ))}
-                      </select>
-                      <RiskPill risk={t.risk} />
                       <button onClick={() => startEdit(i)} title="Edit" style={{
                         background: 'none', border: 'none', color: 'var(--text3)',
                         cursor: 'pointer', fontSize: 13, padding: '3px 5px',
@@ -105,31 +91,11 @@ export default function StepTasks({ tasks, setTasks, loading, roleInfo, onBack, 
             <button className="btn-ghost" onClick={addTask}
               style={{ whiteSpace: 'nowrap', padding: '0.75rem 1.25rem' }}>+ Add</button>
           </div>
-
-          {/* Summary bar */}
-          {tasks.length > 0 && (
-            <div style={{
-              display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: '1.5rem',
-              padding: '0.75rem 1rem', borderRadius: 10,
-              background: 'rgba(255,255,255,0.02)', border: '0.5px solid var(--border)',
-            }}>
-              <span style={{ fontSize: '0.8rem', color: 'var(--text3)', marginRight: 4 }}>{tasks.length} tasks ·</span>
-              {Object.entries(
-                tasks.reduce((acc, t) => { acc[t.risk] = (acc[t.risk] || 0) + 1; return acc }, {})
-              ).sort(([a], [b]) => {
-                const order = ['very-high','high','medium','low-med','low','very-low']
-                return order.indexOf(a) - order.indexOf(b)
-              }).map(([risk]) => (
-                <RiskPill key={risk} risk={risk} />
-              ))}
-            </div>
-          )}
-
           <div style={{ display: 'flex', gap: 10 }}>
             <button className="btn-ghost" onClick={onBack}>← Back</button>
             <button className="btn-primary" onClick={onNext} disabled={tasks.length === 0}
               style={{ padding: '0.875rem 2rem', fontSize: '0.95rem' }}>
-              Analyse & generate report →
+              Analyse & generate summary →
             </button>
           </div>
         </>

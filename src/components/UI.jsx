@@ -24,8 +24,9 @@ export function RiskLegend() {
   return (
     <div style={{
       position: 'fixed', bottom: '1.25rem', right: '1.25rem',
-      background: 'rgba(8,8,16,0.96)', border: '0.5px solid var(--border)',
+      background: 'rgba(255,255,255,0.92)', border: '0.5px solid var(--border)',
       borderRadius: 12, padding: '0.75rem 1rem', zIndex: 50,
+      boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
     }}>
       <p className="label" style={{ marginBottom: 6 }}>RISK SCALE</p>
       {Object.entries(RISK_CONFIG).map(([k, v]) => (
@@ -38,52 +39,37 @@ export function RiskLegend() {
   )
 }
 
-export function Topbar({ user, onLogout, step }) {
+export function Topbar({ activeStep, steps = ['Role', 'Tasks', 'Summary'] }) {
   return (
     <header style={{
-      borderBottom: '0.5px solid var(--border)', padding: '0.875rem 2rem',
-      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-      position: 'sticky', top: 0, background: 'rgba(8,8,16,0.95)',
+      borderBottom: '0.5px solid var(--border)', padding: '0.875rem 2rem', minHeight: '0.75in',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      position: 'sticky', top: 0, background: 'rgba(251,248,242,0.92)',
       backdropFilter: 'blur(10px)', zIndex: 40,
     }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', color: 'var(--accent)', fontStyle: 'italic' }}>JRA</span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text3)', letterSpacing: '0.12em' }}>FRAMEWORK</span>
+      <div style={{ position: 'absolute', left: '2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <span style={{ fontFamily: 'var(--font-body)', fontSize: '1.1rem', color: 'var(--accent)', fontStyle: 'normal', fontWeight: 700, letterSpacing: '0.16em' }}>JRF</span>
+        <span style={{ fontSize: '0.7rem', color: 'var(--text3)', letterSpacing: '0.12em' }}>JOB ROLE FORECAST</span>
       </div>
 
-      {step !== undefined && (
-        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-          {['Role', 'Tasks', 'Report'].map((label, i) => (
+      {activeStep !== undefined && (
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center', position: 'absolute', left: '50%', transform: 'translateX(-50%)' }}>
+          {steps.map((label, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <div style={{
                 width: 24, height: 24, borderRadius: '50%', fontSize: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: step >= i ? 'var(--accent)' : 'rgba(255,255,255,0.08)',
-                color: step >= i ? '#0a0a0f' : 'var(--text3)',
+                background: activeStep >= i ? 'var(--accent)' : 'rgba(15,23,42,0.08)',
+                color: activeStep >= i ? '#ffffff' : 'var(--text3)',
                 fontWeight: 500, transition: 'all 0.3s',
               }}>{i + 1}</div>
-              <span style={{ fontSize: 10, color: step === i ? 'var(--text2)' : 'var(--text3)' }}>{label}</span>
-              {i < 2 && <div style={{ width: 16, height: '0.5px', background: 'var(--border)' }} />}
+              <span style={{ fontSize: 10, color: activeStep === i ? 'var(--text2)' : 'var(--text3)' }}>{label}</span>
+              {i < steps.length - 1 && <div style={{ width: 16, height: '0.5px', background: 'var(--border)' }} />}
             </div>
           ))}
         </div>
       )}
 
-      {user && (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{
-            width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-bg)',
-            border: '0.5px solid rgba(200,192,232,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 12, fontWeight: 500, color: 'var(--accent)',
-          }}>{user.initials}</div>
-          <span style={{ fontSize: '0.825rem', color: 'var(--text2)' }}>{user.name}</span>
-          <button className="btn-ghost" onClick={onLogout}
-            style={{ padding: '0.4rem 0.875rem', fontSize: '0.775rem' }}>
-            Sign out
-          </button>
-        </div>
-      )}
     </header>
   )
 }

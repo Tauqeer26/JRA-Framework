@@ -1,16 +1,16 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg: #080810;
-  --bg2: #0f0f1a;
-  --bg3: rgba(255,255,255,0.03);
-  --border: rgba(255,255,255,0.08);
-  --border2: rgba(255,255,255,0.14);
-  --text: #e8e6f0;
-  --text2: rgba(255,255,255,0.55);
-  --text3: rgba(255,255,255,0.3);
-  --accent: #c8c0e8;
-  --accent-bg: rgba(200,192,232,0.12);
+  --bg: #f4f1ea;
+  --bg2: #fbf8f2;
+  --bg3: rgba(255,255,255,0.82);
+  --border: rgba(15,23,42,0.08);
+  --border2: rgba(15,23,42,0.14);
+  --text: #1f2937;
+  --text2: rgba(31,41,55,0.74);
+  --text3: rgba(31,41,55,0.5);
+  --accent: #6b5fd1;
+  --accent-bg: rgba(107,95,209,0.12);
   --font-display: 'Playfair Display', serif;
   --font-body: 'DM Sans', system-ui, sans-serif;
   --radius: 10px;
@@ -20,7 +20,10 @@
 html { scroll-behavior: smooth; }
 
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(circle at top left, rgba(107,95,209,0.1), transparent 32%),
+    radial-gradient(circle at bottom right, rgba(240,179,82,0.12), transparent 28%),
+    var(--bg);
   color: var(--text);
   font-family: var(--font-body);
   font-size: 16px;
@@ -35,7 +38,7 @@ a { color: inherit; }
 
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+::-webkit-scrollbar-thumb { background: rgba(15,23,42,0.18); border-radius: 2px; }
 
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(16px); }
