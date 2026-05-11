@@ -178,7 +178,8 @@ a { color: inherit; }
   .intro-grid,
   .future-grid,
   .tools-grid,
-  .step-role-grid {
+  .step-role-grid,
+  .framework-grid {
     grid-template-columns: 1fr !important;
   }
 
@@ -281,5 +282,10 @@ a { color: inherit; }
   .intro-grid > div,
   .tools-grid > a {
     min-width: 0 !important;
+  }
+
+  .framework-grid {
+    gap: 12px !important;
+    align-items: start !important;
   }
 }
