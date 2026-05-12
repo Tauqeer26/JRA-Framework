@@ -63,11 +63,11 @@ function TaskCard({ t }) {
               {t.tools.map((tool, j) => (
                 <a key={j} href={tool.url} target="_blank" rel="noopener noreferrer" style={{
                   padding: '10px 16px', borderRadius: 8, fontSize: '0.85rem', textDecoration: 'none',
-                  background: 'rgba(107,95,209,0.15)', color: 'var(--accent)',
-                  border: '1.5px solid rgba(107,95,209,0.35)',
+                  background: 'rgba(29,99,224,0.12)', color: 'var(--accent)',
+                  border: '1.5px solid rgba(29,99,224,0.28)',
                   display: 'flex', alignItems: 'center', gap: 7, fontWeight: 500,
                   transition: 'all 0.2s',
-                  boxShadow: '0 2px 8px rgba(107,95,209,0.1)',
+                  boxShadow: '0 2px 8px rgba(29,99,224,0.1)',
                 }}>
                   <span>{tool.name}</span>
                   <span style={{ opacity: 0.7, fontSize: '0.75rem' }}>↗</span>
@@ -81,7 +81,7 @@ function TaskCard({ t }) {
   )
 }
 
-export default function StepReport({ report, loading, error, roleInfo, onRetry, onEditTasks, onStartOver }) {
+export default function StepReport({ report, loading, error, roleInfo, onRetry, onEditTasks, onNext, onStartOver }) {
   if (loading) {
     return (
       <div className="step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem' }}>
@@ -172,9 +172,9 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
 
           <div className="future-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: '1.5rem' }}>
             {[
-              { key: 'immediate',  label: 'Do now',          color: '#C0392B' },
-              { key: 'short_term', label: 'Next 1–2 years',  color: '#D4820A' },
-              { key: 'long_term',  label: '3–5 year plan',   color: '#117A65' },
+              { key: 'immediate', label: 'Do now', color: '#0b1f69' },
+              { key: 'short_term', label: 'Next 1–2 years', color: '#1d63e0' },
+              { key: 'long_term', label: '3–5 year plan', color: '#3c8cff' },
             ].map(({ key, label, color }) => (
               <div key={key} style={{
                 padding: '1rem', borderRadius: 10,
@@ -200,8 +200,8 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
                 {report.future_proof_guide.skills_to_build.map((s, i) => (
                   <span key={i} style={{
                     padding: '7px 14px', borderRadius: 20, fontSize: '0.82rem',
-                    background: 'rgba(200,192,232,0.1)', color: 'var(--accent)',
-                    border: '0.5px solid rgba(200,192,232,0.2)',
+                    background: 'rgba(29,99,224,0.1)', color: 'var(--accent)',
+                    border: '0.5px solid rgba(29,99,224,0.2)',
                   }}>{s}</span>
                 ))}
               </div>
@@ -250,14 +250,12 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button className="btn-ghost" onClick={onEditTasks}>← Edit tasks</button>
-        <button className="btn-ghost" onClick={onStartOver}
-          style={{
-            color: 'var(--accent)',
-            borderColor: 'rgba(107,95,209,0.35)',
-            background: 'rgba(107,95,209,0.14)',
-            fontWeight: 500,
-          }}>
+        <button className="btn-primary" onClick={onNext}
+          style={{ padding: '0.75rem 1.5rem' }}>View Report →</button>
+        <button className="btn-primary" onClick={onEditTasks}
+          style={{ padding: '0.75rem 1.5rem' }}>← Edit tasks</button>
+        <button className="btn-primary" onClick={onStartOver}
+          style={{ padding: '0.75rem 1.5rem' }}>
           Start new analysis
         </button>
       </div>

@@ -5,6 +5,7 @@ import { Topbar, RiskLegend } from '../components/UI'
 import StepRole from './StepRole'
 import StepTasks from './StepTasks'
 import StepReport from './StepReport'
+import ReportPage from './ReportPage'
 
 export default function AppPage() {
   const navigate = useNavigate()
@@ -112,7 +113,7 @@ Only return the JSON. Keep strings brief and practical, especially the future-pr
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Topbar activeStep={step} />
+      <Topbar activeStep={step} steps={['Role', 'Tasks', 'Summary', 'Report']} />
 
       {step === 0 && (
         <StepRole onNext={handleRoleNext} initial={roleInfo} onBackToIntro={() => navigate('/intro')} />
@@ -131,6 +132,13 @@ Only return the JSON. Keep strings brief and practical, especially the future-pr
           error={reportError} roleInfo={roleInfo}
           onRetry={generateReport}
           onEditTasks={() => setStep(1)}
+          onNext={() => setStep(3)}
+          onStartOver={handleStartOver}
+        />
+      )}
+      {step === 3 && (
+        <ReportPage
+          onBack={() => setStep(2)}
           onStartOver={handleStartOver}
         />
       )}

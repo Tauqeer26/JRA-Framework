@@ -1,4 +1,4 @@
-# JRA App
+# JRA Job Role Analyzer
 
 This app now calls Anthropic through a local Node API instead of directly from the browser.
 

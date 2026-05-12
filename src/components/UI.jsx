@@ -1,4 +1,17 @@
 import { RISK_CONFIG } from '../lib'
+import { useState, useEffect } from 'react'
+
+export function BrandMark({ compact = false }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center' }}>
+      <img
+        src="/file.svg"
+        alt="JRA Job Role Analyzer"
+        style={{ width: compact ? 72 : 120, height: 'auto', display: 'block', flexShrink: 0 }}
+      />
+    </div>
+  )
+}
 
 export function RiskPill({ risk }) {
   const rc = RISK_CONFIG[risk] || RISK_CONFIG['medium']
@@ -12,10 +25,66 @@ export function RiskPill({ risk }) {
 }
 
 export function Spinner({ text = 'Generating...' }) {
+  const [displayText, setDisplayText] = useState(text)
+  const [progress, setProgress] = useState(0)
+
+  const messages = {
+    task: [
+      'Getting it ready for you...',
+      'Analyzing your role...',
+      'Building your task list...',
+    ],
+    summary: [
+      'Getting it ready for you...',
+      'Analyzing AI exposure...',
+      'Calculating risk scores...',
+      'Checking model outputs...',
+      'Cross-referencing recommended tools...',
+      'Building recommendations...',
+      'Formatting your action plan...',
+      'Finalizing recommendations...',
+      'Almost there...',
+    ]
+  }
+  // Choose mode: 'task' rotates indefinitely; 'summary' rotates then shows final message.
+  const isTask = text && text.toLowerCase().includes('personalised')
+
+  const rotatingList = isTask ? messages.task : messages.summary.slice(0, -1)
+  const finalMessage = isTask ? null : messages.summary[messages.summary.length - 1]
+
+  useEffect(() => {
+    let messageIndex = 0
+    let cycles = 0
+    const interval = setInterval(() => {
+      // For task mode rotate indefinitely
+      if (isTask) {
+        messageIndex = (messageIndex + 1) % rotatingList.length
+        setDisplayText(rotatingList[messageIndex])
+        return
+      }
+
+      // For summary mode rotate a few times, then show finalMessage permanently
+      messageIndex = (messageIndex + 1) % rotatingList.length
+      setDisplayText(rotatingList[messageIndex])
+      if (messageIndex === rotatingList.length - 1) {
+        cycles += 1
+      }
+      // After three full cycles, move to final 'Almost there...' and stop rotating
+      if (cycles >= 3) {
+        setDisplayText(finalMessage)
+        clearInterval(interval)
+      }
+    }, 2000)
+
+    return () => clearInterval(interval)
+  }, [text])
+
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text3)', fontSize: '0.85rem' }}>
-      <div className="spinner" />
-      {text}
+    <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, color: 'var(--text3)', fontSize: '0.85rem', marginBottom: 12 }}>
+        <div className="spinner" />
+        <span>{displayText}</span>
+      </div>
     </div>
   )
 }
@@ -44,12 +113,11 @@ export function Topbar({ activeStep, steps = ['Role', 'Tasks', 'Summary'] }) {
     <header className="topbar" style={{
       borderBottom: '0.5px solid var(--border)', padding: '0.875rem 2rem', minHeight: '0.75in',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'sticky', top: 0, background: 'rgba(251,248,242,0.92)',
+      position: 'sticky', top: 0, background: 'rgba(247,251,255,0.92)',
       backdropFilter: 'blur(10px)', zIndex: 40,
     }}>
-      <div className="topbar-brand" style={{ position: 'absolute', left: '2rem', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontFamily: 'var(--font-body)', fontSize: '1.1rem', color: 'var(--accent)', fontStyle: 'normal', fontWeight: 700, letterSpacing: '0.16em' }}>JRF</span>
-        <span style={{ fontSize: '0.7rem', color: 'var(--text3)', letterSpacing: '0.12em' }}>JOB ROLE FORECAST</span>
+      <div className="topbar-brand" style={{ position: 'absolute', left: '2rem' }}>
+        <BrandMark compact />
       </div>
 
       {activeStep !== undefined && (
@@ -59,7 +127,7 @@ export function Topbar({ activeStep, steps = ['Role', 'Tasks', 'Summary'] }) {
               <div className="topbar-step-circle" style={{
                 width: 24, height: 24, borderRadius: '50%', fontSize: 10,
                 display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: activeStep >= i ? 'var(--accent)' : 'rgba(15,23,42,0.08)',
+                background: activeStep >= i ? 'var(--brand-gradient)' : 'rgba(17,32,74,0.08)',
                 color: activeStep >= i ? '#ffffff' : 'var(--text3)',
                 fontWeight: 500, transition: 'all 0.3s',
               }}>{i + 1}</div>

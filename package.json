@@ -7,6 +7,7 @@
     "api": "node server/api.js",
     "dev": "vite",
     "build": "vite build",
+    "prestart": "vite build",
     "start": "node server/api.js",
     "lint": "eslint .",
     "preview": "vite preview"

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
+import { BrandMark } from '../components/UI'
 
 export default function LoginPage() {
   const [mode, setMode] = useState('login') // 'login' | 'signup'
@@ -46,20 +47,19 @@ export default function LoginPage() {
         <div style={{
           position: 'absolute', top: '-80px', left: '-80px',
           width: 400, height: 400, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(107,95,209,0.11) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(29,99,224,0.14) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
         <div style={{
           position: 'absolute', bottom: '-60px', right: '-60px',
           width: 300, height: 300, borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(240,179,82,0.09) 0%, transparent 70%)',
+          background: 'radial-gradient(circle, rgba(11,31,105,0.09) 0%, transparent 70%)',
           pointerEvents: 'none',
         }} />
 
         <div style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ marginBottom: '3rem' }}>
-            <span style={{ fontFamily: 'var(--font-body)', fontSize: '1.5rem', color: 'var(--accent)', fontStyle: 'normal', fontWeight: 700, letterSpacing: '0.16em' }}>JRF</span>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text3)', letterSpacing: '0.14em', marginLeft: 10 }}>JOB ROLE FORECAST</span>
+            <BrandMark />
           </div>
 
           <h1 style={{
@@ -72,7 +72,7 @@ export default function LoginPage() {
           </h1>
 
           <p style={{ color: 'var(--text2)', fontSize: '0.95rem', lineHeight: 1.7, maxWidth: 380, marginBottom: '2.5rem' }}>
-            JRF analyses your job role task-by-task, assesses your exposure to AI automation, and gives you a personalised future-proofing plan.
+            JRA Job Role Analyzer analyses your job role task-by-task, assesses your exposure to AI automation, and gives you a personalised future-proofing plan.
           </p>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -103,7 +103,7 @@ export default function LoginPage() {
           <p style={{ fontSize: '0.875rem', color: 'var(--text2)', marginBottom: '2rem' }}>
             {mode === 'login'
               ? 'Sign in to access your AI risk profile'
-              : 'Start your personalised JRF analysis'}
+              : 'Start your personalised JRA analysis'}
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
