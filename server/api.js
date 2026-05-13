@@ -7,10 +7,11 @@ loadEnvFile()
 
 const PORT = Number(process.env.PORT || process.env.API_PORT || 8787)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-20250514'
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01'
 const DIST_DIR = path.resolve(process.cwd(), 'dist')
 const INDEX_FILE = path.join(DIST_DIR, 'index.html')
+const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504, 529])
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -105,6 +106,40 @@ function readJsonBody(req) {
   })
 }
 
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms))
+}
+
+async function callAnthropicWithRetry(body) {
+  let lastResponse = null
+
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const upstreamRes = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': ANTHROPIC_VERSION,
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: body.max_tokens ?? 2000,
+        system: body.system ?? '',
+        messages: Array.isArray(body.messages) ? body.messages : [],
+      }),
+    })
+
+    if (!RETRYABLE_STATUS_CODES.has(upstreamRes.status) || attempt === 2) {
+      return upstreamRes
+    }
+
+    lastResponse = upstreamRes
+    await delay(800 * (attempt + 1))
+  }
+
+  return lastResponse
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
 
@@ -154,20 +189,13 @@ const server = http.createServer(async (req, res) => {
       messages: Array.isArray(body.messages) ? body.messages.length : 0,
     })
 
-    const upstreamRes = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': ANTHROPIC_VERSION,
-      },
-      body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
-        max_tokens: body.max_tokens ?? 2000,
-        system: body.system ?? '',
-        messages: Array.isArray(body.messages) ? body.messages : [],
-      }),
-    })
+    const upstreamRes = await callAnthropicWithRetry(body)
+
+    if (upstreamRes.status === 529) {
+      console.warn('[API] Anthropic overloaded (529) after all retries')
+      sendJson(res, 529, { error: 'The app is under heavy load — please try again in a few minutes.' })
+      return
+    }
 
     const text = await upstreamRes.text()
     let payload

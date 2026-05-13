@@ -7,7 +7,13 @@ export function BrandMark({ compact = false }) {
       <img
         src="/file.svg"
         alt="JRA Job Role Analyzer"
-        style={{ width: compact ? 72 : 120, height: 'auto', display: 'block', flexShrink: 0 }}
+        style={{
+          width: compact ? 72 : 120,
+          height: 'auto',
+          display: 'block',
+          flexShrink: 0,
+          mixBlendMode: 'multiply',
+        }}
       />
     </div>
   )
@@ -93,15 +99,20 @@ export function RiskLegend() {
   return (
     <div className="risk-legend" style={{
       position: 'fixed', bottom: '1.25rem', right: '1.25rem',
-      background: 'rgba(255,255,255,0.92)', border: '0.5px solid var(--border)',
+      background: 'rgba(255,255,255,0.96)', border: '0.5px solid var(--border)',
       borderRadius: 12, padding: '0.75rem 1rem', zIndex: 50,
-      boxShadow: '0 16px 40px rgba(15,23,42,0.08)',
+      boxShadow: '0 16px 40px rgba(15,23,42,0.08)', minWidth: 190,
     }}>
-      <p className="label" style={{ marginBottom: 6 }}>RISK SCALE</p>
+      <p className="label" style={{ marginBottom: 8 }}>RISK SCALE</p>
       {Object.entries(RISK_CONFIG).map(([k, v]) => (
-        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 7, marginBottom: 3 }}>
-          <div style={{ width: 7, height: 7, borderRadius: '50%', background: v.dot }} />
-          <span style={{ fontSize: 10, color: 'var(--text3)' }}>{v.label}</span>
+        <div key={k} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 5 }}>
+          <div style={{ width: 7, height: 7, borderRadius: '50%', background: v.dot, flexShrink: 0 }} />
+          <span style={{ fontSize: 10, color: 'var(--text2)', flex: 1 }}>{v.label}</span>
+          <span style={{
+            fontSize: 9, color: v.color, background: v.bg,
+            border: `0.5px solid ${v.border}`,
+            padding: '1px 6px', borderRadius: 10, fontWeight: 500, whiteSpace: 'nowrap',
+          }}>{v.taskType}</span>
         </div>
       ))}
     </div>

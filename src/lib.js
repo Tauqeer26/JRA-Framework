@@ -1,17 +1,36 @@
 export const RISK_CONFIG = {
-  'very-high': { color: '#C0392B', bg: 'rgba(192,57,43,0.12)', border: 'rgba(192,57,43,0.3)',  label: 'Very High Risk', pill: 'VH', dot: '#C0392B' },
-  'high':      { color: '#D4820A', bg: 'rgba(212,130,10,0.12)', border: 'rgba(212,130,10,0.3)', label: 'High Risk',      pill: 'H',  dot: '#D4820A' },
-  'medium':    { color: '#2471A3', bg: 'rgba(36,113,163,0.12)', border: 'rgba(36,113,163,0.3)', label: 'Medium Risk',    pill: 'M',  dot: '#2471A3' },
-  'low-med':   { color: '#1E8449', bg: 'rgba(30,132,73,0.12)',  border: 'rgba(30,132,73,0.3)',  label: 'Low–Med Risk',   pill: 'LM', dot: '#1E8449' },
-  'low':       { color: '#117A65', bg: 'rgba(17,122,101,0.12)', border: 'rgba(17,122,101,0.3)', label: 'Low Risk',       pill: 'L',  dot: '#117A65' },
-  'very-low':  { color: '#6C3483', bg: 'rgba(108,52,131,0.12)', border: 'rgba(108,52,131,0.3)', label: 'Very Low Risk',  pill: 'VL', dot: '#6C3483' },
+  'very-high': { color: '#C0392B', bg: 'rgba(192,57,43,0.12)', border: 'rgba(192,57,43,0.3)',  label: 'Very High Risk', pill: 'VH', dot: '#C0392B', taskType: 'Routine'        },
+  'high':      { color: '#D4820A', bg: 'rgba(212,130,10,0.12)', border: 'rgba(212,130,10,0.3)', label: 'High Risk',      pill: 'H',  dot: '#D4820A', taskType: 'Repetitive'     },
+  'medium':    { color: '#2471A3', bg: 'rgba(36,113,163,0.12)', border: 'rgba(36,113,163,0.3)', label: 'Medium Risk',    pill: 'M',  dot: '#2471A3', taskType: 'Rule-Based'     },
+  'low-med':   { color: '#1E8449', bg: 'rgba(30,132,73,0.12)',  border: 'rgba(30,132,73,0.3)',  label: 'Low–Med Risk',   pill: 'LM', dot: '#1E8449', taskType: 'Creative'       },
+  'low':       { color: '#117A65', bg: 'rgba(17,122,101,0.12)', border: 'rgba(17,122,101,0.3)', label: 'Low Risk',       pill: 'L',  dot: '#117A65', taskType: 'Strategic'      },
+  'very-low':  { color: '#6C3483', bg: 'rgba(108,52,131,0.12)', border: 'rgba(108,52,131,0.3)', label: 'Very Low Risk',  pill: 'VL', dot: '#6C3483', taskType: 'Human-Centred'  },
+}
+
+export const TASK_TYPES = [
+  'routine',
+  'repetitive',
+  'rule-based',
+  'creative',
+  'strategic',
+  'human-centred',
+]
+
+export const TASK_TYPE_LABELS = {
+  'routine':        'Routine',
+  'repetitive':     'Repetitive',
+  'rule-based':     'Rule-Based',
+  'creative':       'Creative',
+  'strategic':      'Strategic',
+  'human-centred':  'Human-Centred',
 }
 
 export const INDUSTRIES = [
   'Healthcare & Medical', 'Finance & Banking', 'Legal', 'Education',
   'Technology & Software', 'Marketing & Media', 'Manufacturing',
   'Retail & E-commerce', 'Construction & Engineering',
-  'Government & Public Sector', 'Non-profit', 'Consulting', 'Other',
+  'Government & Public Sector', 'Non-profit', 'Consulting',
+  'Hospitality & Tourism', 'Transport & Logistics', 'Energy & Utilities',
 ]
 
 export async function callClaude(systemPrompt, userPrompt, maxTokens = 2000) {
@@ -30,11 +49,15 @@ export async function callClaude(systemPrompt, userPrompt, maxTokens = 2000) {
   console.log('[API] callClaude response', { status: res.status, ok: res.ok })
 
   if (!res.ok) {
-    const message = data?.error || data?.message || `API error ${res.status}`
+    if (res.status === 529) {
+      throw new Error('The app is under heavy load — please try again in a few minutes.')
+    }
+    const errObj = data?.error
+    const message = (typeof errObj === 'string' ? errObj : errObj?.message) || data?.message || `API error ${res.status}`
     throw new Error(message)
   }
 
-  if (data?.error) throw new Error(data.error.message || data.error)
+  if (data?.error) throw new Error(data.error.message || (typeof data.error === 'string' ? data.error : JSON.stringify(data.error)))
   const text = data.content?.[0]?.text || ''
   if (!text) throw new Error('Empty response')
   return text

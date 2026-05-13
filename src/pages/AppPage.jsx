@@ -65,7 +65,13 @@ Return ONLY a JSON array:
       const raw = await callClaude(
         'You are an AI workforce strategist. Return ONLY a valid JSON object. No markdown, no text outside JSON.',
         `Role: "${roleInfo.jobTitle}", Industry: "${roleInfo.industryFinal}".
-Tasks:
+
+Task classification framework:
+- routine / repetitive / rule-based → highly automatable, lean toward higher AI risk
+- creative / strategic / human-centred → harder to automate, lean toward lower AI risk
+The user has reviewed and confirmed the task type and risk level for each task below — treat these as ground truth and let them directly inform your analysis, timelines, and recommendations.
+
+Tasks (format: task name [task_type, risk]):
 ${taskSummary}
 
 Return this JSON (moderately concise, max 2 tools per task, max 5 top_tools):
@@ -140,6 +146,7 @@ Only return the JSON. Keep strings brief and practical, especially the future-pr
         <ReportPage
           onBack={() => setStep(2)}
           onStartOver={handleStartOver}
+          roleInfo={roleInfo}
         />
       )}
 
