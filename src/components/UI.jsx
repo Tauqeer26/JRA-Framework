@@ -1,5 +1,6 @@
 import { RISK_CONFIG } from '../lib'
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 
 export function BrandMark({ compact = false }) {
   return (
@@ -128,7 +129,9 @@ export function Topbar({ activeStep, steps = ['Role', 'Tasks', 'Summary'] }) {
       backdropFilter: 'blur(10px)', zIndex: 40,
     }}>
       <div className="topbar-brand" style={{ position: 'absolute', left: '2rem' }}>
-        <BrandMark compact />
+        <Link to="/" style={{ textDecoration: 'none', color: 'inherit' }} onClick={() => { if (typeof window !== 'undefined') window.scrollTo({ top: 0, behavior: 'smooth' }) }}>
+          <BrandMark compact />
+        </Link>
       </div>
 
       {activeStep !== undefined && (
