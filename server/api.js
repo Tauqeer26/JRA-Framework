@@ -1,13 +1,7 @@
 import http from 'node:http'
-import dns from 'node:dns'
 import fs from 'node:fs'
 import path from 'node:path'
 import { URL } from 'node:url'
-import nodemailer from 'nodemailer'
-
-if (typeof dns.setDefaultResultOrder === 'function') {
-  dns.setDefaultResultOrder('ipv4first')
-}
 
 loadEnvFile()
 
@@ -15,18 +9,9 @@ const PORT = Number(process.env.PORT || process.env.API_PORT || 8787)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01'
-const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
-const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
-const SMTP_SECURE = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true'
-const SMTP_USER = process.env.SMTP_USER
-const SMTP_PASS = process.env.SMTP_PASS
+const RESEND_API_KEY = process.env.RESEND_API_KEY
+const RESEND_FROM = process.env.RESEND_FROM || 'JRA Job Role Analyser <onboarding@resend.dev>'
 const EMAIL_TO = process.env.EMAIL_TO || 'khandaiyan13@gmail.com'
-const IS_RAILWAY = Boolean(
-  process.env.RAILWAY_ENVIRONMENT ||
-  process.env.RAILWAY_STATIC_URL ||
-  process.env.RAILWAY_PUBLIC_DOMAIN ||
-  process.env.RAILWAY_PROJECT_ID,
-)
 const DIST_DIR = path.resolve(process.cwd(), 'dist')
 const INDEX_FILE = path.join(DIST_DIR, 'index.html')
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504, 529])
@@ -74,12 +59,12 @@ function loadEnvFile() {
 }
 
 function formatMailError(error) {
-  if (error?.code === 'EAUTH' || error?.responseCode === 534) {
-    return 'Gmail rejected the login. Use a Google app-specific password for SMTP_PASS, not your normal account password.'
+  if (error?.status === 401 || error?.status === 403) {
+    return 'Resend rejected the request. Check RESEND_API_KEY and confirm the from address is verified in Resend.'
   }
 
-  if (error?.code === 'ETIMEDOUT' || error?.code === 'ESOCKET' || error?.code === 'ENETUNREACH') {
-    return 'Railway could not reach Gmail SMTP over the current connection profile. Try SMTP_PORT=587 and SMTP_SECURE=false, or switch to an email API provider.'
+  if (error?.status === 429) {
+    return 'Resend rate limit reached. Try again shortly.'
   }
 
   return error?.message || 'Failed to send report email'
@@ -179,60 +164,42 @@ async function callAnthropicWithRetry(body) {
   return lastResponse
 }
 
-function createMailer({ port, secure } = {}) {
-  if (!SMTP_USER || !SMTP_PASS) {
-    throw new Error('Missing SMTP_USER or SMTP_PASS. Add Gmail SMTP credentials to your environment before sending report emails.')
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: port ?? SMTP_PORT,
-    secure: secure ?? SMTP_SECURE,
-    family: 4,
-    lookup(hostname, options, callback) {
-      return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-    tls: {
-      servername: SMTP_HOST,
-    },
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  })
-}
-
 async function sendReportEmail(mailOptions) {
-  const railwayProfile = { port: 587, secure: false }
-  const configuredProfile = { port: SMTP_PORT, secure: SMTP_SECURE }
-  const preferredProfiles = IS_RAILWAY
-    ? [railwayProfile, configuredProfile]
-    : [configuredProfile, railwayProfile]
-
-  let lastError = null
-
-  for (const profile of preferredProfiles) {
-    try {
-      const mailer = createMailer(profile)
-      return await mailer.sendMail(mailOptions)
-    } catch (error) {
-      lastError = error
-      if (!['ETIMEDOUT', 'ESOCKET', 'ENETUNREACH'].includes(error?.code)) {
-        throw error
-      }
-      console.warn('[API] SMTP profile failed, trying the next profile', {
-        host: SMTP_HOST,
-        port: profile.port,
-        secure: profile.secure,
-        code: error?.code,
-      })
-    }
+  if (!RESEND_API_KEY) {
+    throw new Error('Missing RESEND_API_KEY. Add your Resend API key to the environment before sending report emails.')
   }
 
-  throw lastError || new Error('Failed to send report email')
+  const response = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${RESEND_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      from: RESEND_FROM,
+      to: mailOptions.to,
+      reply_to: mailOptions.replyTo,
+      subject: mailOptions.subject,
+      text: mailOptions.text,
+      html: mailOptions.html,
+    }),
+  })
+
+  if (!response.ok) {
+    let details = ''
+    try {
+      const data = await response.json()
+      details = data?.message || data?.error || ''
+    } catch {
+      details = await response.text().catch(() => '')
+    }
+
+    const error = new Error(details || 'Failed to send report email')
+    error.status = response.status
+    throw error
+  }
+
+  return response.json().catch(() => ({}))
 }
 
 const server = http.createServer(async (req, res) => {
@@ -268,7 +235,7 @@ const server = http.createServer(async (req, res) => {
       }
 
       await sendReportEmail({
-        from: SMTP_USER,
+        from: RESEND_FROM,
         to: EMAIL_TO,
         replyTo: email,
         subject: `JRA report request from ${name}`,
