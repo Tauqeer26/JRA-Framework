@@ -21,6 +21,12 @@ const SMTP_SECURE = String(process.env.SMTP_SECURE || 'false').toLowerCase() ===
 const SMTP_USER = process.env.SMTP_USER
 const SMTP_PASS = process.env.SMTP_PASS
 const EMAIL_TO = process.env.EMAIL_TO || 'khandaiyan13@gmail.com'
+const IS_RAILWAY = Boolean(
+  process.env.RAILWAY_ENVIRONMENT ||
+  process.env.RAILWAY_STATIC_URL ||
+  process.env.RAILWAY_PUBLIC_DOMAIN ||
+  process.env.RAILWAY_PROJECT_ID,
+)
 const DIST_DIR = path.resolve(process.cwd(), 'dist')
 const INDEX_FILE = path.join(DIST_DIR, 'index.html')
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504, 529])
@@ -173,42 +179,15 @@ async function callAnthropicWithRetry(body) {
   return lastResponse
 }
 
-function createMailer() {
+function createMailer({ port, secure } = {}) {
   if (!SMTP_USER || !SMTP_PASS) {
     throw new Error('Missing SMTP_USER or SMTP_PASS. Add Gmail SMTP credentials to your environment before sending report emails.')
   }
 
   return nodemailer.createTransport({
     host: SMTP_HOST,
-    port: SMTP_PORT,
-    secure: SMTP_SECURE,
-    family: 4,
-    lookup(hostname, options, callback) {
-      return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
-    },
-    connectionTimeout: 10000,
-    greetingTimeout: 10000,
-    socketTimeout: 10000,
-    tls: {
-      servername: SMTP_HOST,
-    },
-    auth: {
-      user: SMTP_USER,
-      pass: SMTP_PASS,
-    },
-  })
-}
-
-function createFallbackMailer() {
-  if (!SMTP_USER || !SMTP_PASS) {
-    throw new Error('Missing SMTP_USER or SMTP_PASS. Add Gmail SMTP credentials to your environment before sending report emails.')
-  }
-
-  return nodemailer.createTransport({
-    host: SMTP_HOST,
-    port: 587,
-    secure: false,
-    requireTLS: true,
+    port: port ?? SMTP_PORT,
+    secure: secure ?? SMTP_SECURE,
     family: 4,
     lookup(hostname, options, callback) {
       return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
@@ -227,19 +206,33 @@ function createFallbackMailer() {
 }
 
 async function sendReportEmail(mailOptions) {
-  const primaryMailer = createMailer()
+  const railwayProfile = { port: 587, secure: false }
+  const configuredProfile = { port: SMTP_PORT, secure: SMTP_SECURE }
+  const preferredProfiles = IS_RAILWAY
+    ? [railwayProfile, configuredProfile]
+    : [configuredProfile, railwayProfile]
 
-  try {
-    return await primaryMailer.sendMail(mailOptions)
-  } catch (primaryError) {
-    if (!['ETIMEDOUT', 'ESOCKET', 'ENETUNREACH'].includes(primaryError?.code)) {
-      throw primaryError
+  let lastError = null
+
+  for (const profile of preferredProfiles) {
+    try {
+      const mailer = createMailer(profile)
+      return await mailer.sendMail(mailOptions)
+    } catch (error) {
+      lastError = error
+      if (!['ETIMEDOUT', 'ESOCKET', 'ENETUNREACH'].includes(error?.code)) {
+        throw error
+      }
+      console.warn('[API] SMTP profile failed, trying the next profile', {
+        host: SMTP_HOST,
+        port: profile.port,
+        secure: profile.secure,
+        code: error?.code,
+      })
     }
-
-    console.warn('[API] Primary SMTP profile failed, retrying with STARTTLS fallback', primaryError)
-    const fallbackMailer = createFallbackMailer()
-    return await fallbackMailer.sendMail(mailOptions)
   }
+
+  throw lastError || new Error('Failed to send report email')
 }
 
 const server = http.createServer(async (req, res) => {
