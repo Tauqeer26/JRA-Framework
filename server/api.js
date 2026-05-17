@@ -2,6 +2,7 @@ import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
 import { URL } from 'node:url'
+import nodemailer from 'nodemailer'
 
 loadEnvFile()
 
@@ -9,6 +10,12 @@ const PORT = Number(process.env.PORT || process.env.API_PORT || 8787)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01'
+const SMTP_HOST = process.env.SMTP_HOST || 'smtp.gmail.com'
+const SMTP_PORT = Number(process.env.SMTP_PORT || 587)
+const SMTP_SECURE = String(process.env.SMTP_SECURE || 'false').toLowerCase() === 'true'
+const SMTP_USER = process.env.SMTP_USER
+const SMTP_PASS = process.env.SMTP_PASS
+const EMAIL_TO = process.env.EMAIL_TO || 'khandaiyan13@gmail.com'
 const DIST_DIR = path.resolve(process.cwd(), 'dist')
 const INDEX_FILE = path.join(DIST_DIR, 'index.html')
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504, 529])
@@ -53,6 +60,14 @@ function loadEnvFile() {
       process.env[key] = value
     }
   }
+}
+
+function formatMailError(error) {
+  if (error?.code === 'EAUTH' || error?.responseCode === 534) {
+    return 'Gmail rejected the login. Use a Google app-specific password for SMTP_PASS, not your normal account password.'
+  }
+
+  return error?.message || 'Failed to send report email'
 }
 
 function sendJson(res, statusCode, payload) {
@@ -110,6 +125,15 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms))
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 async function callAnthropicWithRetry(body) {
   let lastResponse = null
 
@@ -140,6 +164,22 @@ async function callAnthropicWithRetry(body) {
   return lastResponse
 }
 
+function createMailer() {
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error('Missing SMTP_USER or SMTP_PASS. Add Gmail SMTP credentials to your environment before sending report emails.')
+  }
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: SMTP_PORT,
+    secure: SMTP_SECURE,
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  })
+}
+
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
 
@@ -155,6 +195,58 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'GET' && url.pathname === '/health') {
     sendJson(res, 200, { ok: true })
+    return
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/report-request') {
+    try {
+      const body = await readJsonBody(req)
+      const name = String(body.name || '').trim()
+      const email = String(body.email || '').trim()
+      const jobRole = String(body.jobRole || '').trim()
+      const industry = String(body.industry || '').trim()
+      const message = String(body.message || '').trim()
+
+      if (!name || !email || !jobRole || !industry || !message) {
+        sendJson(res, 400, { error: 'All report fields are required.' })
+        return
+      }
+
+      const transporter = createMailer()
+      await transporter.sendMail({
+        from: SMTP_USER,
+        to: EMAIL_TO,
+        replyTo: email,
+        subject: `JRA report request from ${name}`,
+        text: [
+          'New report request from the JRA app',
+          '',
+          `Name: ${name}`,
+          `Email: ${email}`,
+          `Job role: ${jobRole}`,
+          `Industry: ${industry}`,
+          '',
+          'Message:',
+          message,
+        ].join('\n'),
+        html: `
+          <div style="font-family: Arial, sans-serif; color: #0f172a; line-height: 1.6">
+            <h2 style="margin: 0 0 12px">New JRA report request</h2>
+            <p><strong>Name:</strong> ${escapeHtml(name)}</p>
+            <p><strong>Email:</strong> ${escapeHtml(email)}</p>
+            <p><strong>Job role:</strong> ${escapeHtml(jobRole)}</p>
+            <p><strong>Industry:</strong> ${escapeHtml(industry)}</p>
+            <p><strong>Message:</strong></p>
+            <div style="white-space: pre-wrap; padding: 12px; border: 1px solid #e2e8f0; border-radius: 8px; background: #f8fafc">${escapeHtml(message)}</div>
+          </div>
+        `,
+      })
+
+      sendJson(res, 200, { ok: true })
+    } catch (error) {
+      console.error('[API] /api/report-request error', error)
+      sendJson(res, 500, { error: formatMailError(error) })
+    }
     return
   }
 

@@ -1,5 +1,167 @@
+import { jsPDF } from 'jspdf'
 import { RISK_CONFIG } from '../lib'
 import { RiskPill, Spinner } from '../components/UI'
+
+function wrapLines(doc, text, maxWidth) {
+  return doc.splitTextToSize(String(text || ''), maxWidth)
+}
+
+function addWrappedLines(doc, lines, x, y, lineHeight, maxWidth, options = {}) {
+  const { fontSize = 10, color = [51, 65, 85], bold = false, gapAfter = 0 } = options
+  doc.setFontSize(fontSize)
+  doc.setTextColor(...color)
+  doc.setFont('helvetica', bold ? 'bold' : 'normal')
+
+  let cursorY = y
+  lines.forEach(line => {
+    const wrapped = wrapLines(doc, line, maxWidth)
+    wrapped.forEach((segment, index) => {
+      doc.text(segment, x, cursorY)
+      cursorY += lineHeight
+      if (index < wrapped.length - 1) {
+        cursorY += 0
+      }
+    })
+  })
+
+  return cursorY + gapAfter
+}
+
+function downloadSummaryPdf(report, roleInfo) {
+  const doc = new jsPDF({ unit: 'pt', format: 'a4' })
+  const pageWidth = doc.internal.pageSize.getWidth()
+  const pageHeight = doc.internal.pageSize.getHeight()
+  const marginX = 48
+  const maxWidth = pageWidth - marginX * 2
+  let y = 54
+
+  const ensureSpace = (spaceNeeded = 40) => {
+    if (y + spaceNeeded > pageHeight - 48) {
+      doc.addPage()
+      y = 54
+    }
+  }
+
+  const sectionTitle = title => {
+    ensureSpace(44)
+    doc.setFont('helvetica', 'bold')
+    doc.setFontSize(12)
+    doc.setTextColor(15, 23, 42)
+    doc.text(title, marginX, y)
+    y += 18
+  }
+
+  const body = text => {
+    doc.setFont('helvetica', 'normal')
+    doc.setFontSize(10)
+    doc.setTextColor(51, 65, 85)
+    const lines = wrapLines(doc, text, maxWidth)
+    lines.forEach(line => {
+      ensureSpace(16)
+      doc.text(line, marginX, y)
+      y += 14
+    })
+    y += 2
+  }
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.setTextColor(15, 23, 42)
+  doc.text('AI Risk & Future-Proofing Summary', marginX, y)
+  y += 22
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  doc.setTextColor(100, 116, 139)
+  doc.text(`Role: ${roleInfo?.jobTitle || 'Not provided'}`, marginX, y)
+  y += 14
+  doc.text(`Industry: ${roleInfo?.industryFinal || 'Not provided'}`, marginX, y)
+  y += 14
+  doc.text(`Overall AI exposure: ${RISK_CONFIG[report.overall_risk]?.label || report.overall_risk || 'Not provided'}`, marginX, y)
+  y += 22
+
+  sectionTitle('Summary')
+  body(report.summary)
+
+  if (report.industry_note) {
+    sectionTitle('Industry context')
+    body(report.industry_note)
+  }
+
+  if (report.task_breakdown?.length > 0) {
+    sectionTitle('Task breakdown')
+    report.task_breakdown.forEach(task => {
+      ensureSpace(54)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(15, 23, 42)
+      doc.text(`${task.task} - ${task.risk || 'risk not provided'}`, marginX, y)
+      y += 14
+      body(task.why || 'No explanation provided.')
+      if (task.timeline) {
+        body(`Timeline: ${task.timeline}`)
+      }
+      if (task.action) {
+        body(`Action: ${task.action}`)
+      }
+      y += 4
+    })
+  }
+
+  if (report.future_proof_guide) {
+    sectionTitle('Future-proofing guide')
+    const guideSections = [
+      ['Do now', report.future_proof_guide.immediate],
+      ['Next 1-2 years', report.future_proof_guide.short_term],
+      ['3-5 year plan', report.future_proof_guide.long_term],
+    ]
+
+    guideSections.forEach(([label, items]) => {
+      if (items?.length) {
+        ensureSpace(40)
+        doc.setFont('helvetica', 'bold')
+        doc.setFontSize(10)
+        doc.setTextColor(37, 99, 235)
+        doc.text(label, marginX, y)
+        y += 14
+        doc.setFont('helvetica', 'normal')
+        doc.setTextColor(51, 65, 85)
+        items.forEach(item => {
+          ensureSpace(18)
+          const lines = wrapLines(doc, `- ${item}`, maxWidth)
+          lines.forEach(line => {
+            ensureSpace(14)
+            doc.text(line, marginX, y)
+            y += 12
+          })
+        })
+        y += 4
+      }
+    })
+
+    if (report.future_proof_guide.skills_to_build?.length) {
+      ensureSpace(30)
+      doc.setFont('helvetica', 'bold')
+      doc.setFontSize(10)
+      doc.setTextColor(37, 99, 235)
+      doc.text('Skills to build', marginX, y)
+      y += 14
+      doc.setFont('helvetica', 'normal')
+      doc.setTextColor(51, 65, 85)
+      report.future_proof_guide.skills_to_build.forEach(skill => {
+        ensureSpace(16)
+        const lines = wrapLines(doc, `- ${skill}`, maxWidth)
+        lines.forEach(line => {
+          ensureSpace(14)
+          doc.text(line, marginX, y)
+          y += 12
+        })
+      })
+    }
+  }
+
+  doc.save('ai-risk-summary.pdf')
+}
 
 function TaskCard({ t }) {
   const rc = RISK_CONFIG[t.risk] || RISK_CONFIG['medium']
@@ -126,9 +288,22 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
   return (
     <div className="fade-up step-page" style={{ maxWidth: 720, margin: '0 auto', padding: '2.5rem 1.5rem 5rem' }}>
       <p className="label">STEP 3 — YOUR FULL SUMMARY</p>
-      <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 500, color: 'var(--text)', marginBottom: '0.25rem' }}>
-        AI Risk & Future-Proofing Summary
-      </h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: '0.25rem', flexWrap: 'wrap' }}>
+        <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 500, color: 'var(--text)', marginBottom: 0, flex: '1 1 340px' }}>
+          AI Risk & Future-Proofing Summary
+        </h1>
+        {report && (
+          <button
+            className="btn-primary"
+            type="button"
+            onClick={onNext}
+            style={{ padding: '0.75rem 1.25rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 6, flexShrink: 0 }}
+          >
+            <span>Get your report</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        )}
+      </div>
       <p style={{ color: 'var(--text2)', fontSize: '0.875rem', marginBottom: '2rem' }}>
         <span style={{ color: 'var(--accent)' }}>{roleInfo.jobTitle}</span>
         <span style={{ color: 'var(--text3)' }}> · {roleInfo.industryFinal}</span>
@@ -250,8 +425,19 @@ export default function StepReport({ report, loading, error, roleInfo, onRetry, 
       </div>
 
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-        <button className="btn-primary" onClick={onNext}
-          style={{ padding: '0.75rem 1.5rem' }}>View Report →</button>
+        <button
+          className="btn-primary"
+          type="button"
+          onClick={() => downloadSummaryPdf(report, roleInfo)}
+          style={{ padding: '0.85rem 1.75rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 10, boxShadow: '0 18px 44px rgba(29,99,224,0.22)', borderRadius: 12 }}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M12 3v10" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M8 11l4 4 4-4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            <path d="M21 21H3" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span style={{ fontWeight: 600 }}>Download PDF</span>
+        </button>
         <button className="btn-primary" onClick={onEditTasks}
           style={{ padding: '0.75rem 1.5rem' }}>← Edit tasks</button>
         <button className="btn-primary" onClick={onStartOver}
