@@ -72,6 +72,10 @@ function formatMailError(error) {
     return 'Gmail rejected the login. Use a Google app-specific password for SMTP_PASS, not your normal account password.'
   }
 
+  if (error?.code === 'ETIMEDOUT' || error?.code === 'ESOCKET' || error?.code === 'ENETUNREACH') {
+    return 'Railway could not reach Gmail SMTP over the current connection profile. Try SMTP_PORT=587 and SMTP_SECURE=false, or switch to an email API provider.'
+  }
+
   return error?.message || 'Failed to send report email'
 }
 
@@ -182,6 +186,9 @@ function createMailer() {
     lookup(hostname, options, callback) {
       return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
     },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
     tls: {
       servername: SMTP_HOST,
     },
@@ -190,6 +197,49 @@ function createMailer() {
       pass: SMTP_PASS,
     },
   })
+}
+
+function createFallbackMailer() {
+  if (!SMTP_USER || !SMTP_PASS) {
+    throw new Error('Missing SMTP_USER or SMTP_PASS. Add Gmail SMTP credentials to your environment before sending report emails.')
+  }
+
+  return nodemailer.createTransport({
+    host: SMTP_HOST,
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    family: 4,
+    lookup(hostname, options, callback) {
+      return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
+    },
+    connectionTimeout: 10000,
+    greetingTimeout: 10000,
+    socketTimeout: 10000,
+    tls: {
+      servername: SMTP_HOST,
+    },
+    auth: {
+      user: SMTP_USER,
+      pass: SMTP_PASS,
+    },
+  })
+}
+
+async function sendReportEmail(mailOptions) {
+  const primaryMailer = createMailer()
+
+  try {
+    return await primaryMailer.sendMail(mailOptions)
+  } catch (primaryError) {
+    if (!['ETIMEDOUT', 'ESOCKET', 'ENETUNREACH'].includes(primaryError?.code)) {
+      throw primaryError
+    }
+
+    console.warn('[API] Primary SMTP profile failed, retrying with STARTTLS fallback', primaryError)
+    const fallbackMailer = createFallbackMailer()
+    return await fallbackMailer.sendMail(mailOptions)
+  }
 }
 
 const server = http.createServer(async (req, res) => {
@@ -224,8 +274,7 @@ const server = http.createServer(async (req, res) => {
         return
       }
 
-      const transporter = createMailer()
-      await transporter.sendMail({
+      await sendReportEmail({
         from: SMTP_USER,
         to: EMAIL_TO,
         replyTo: email,
