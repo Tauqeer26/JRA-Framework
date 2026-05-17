@@ -1,8 +1,13 @@
 import http from 'node:http'
+import dns from 'node:dns'
 import fs from 'node:fs'
 import path from 'node:path'
 import { URL } from 'node:url'
 import nodemailer from 'nodemailer'
+
+if (typeof dns.setDefaultResultOrder === 'function') {
+  dns.setDefaultResultOrder('ipv4first')
+}
 
 loadEnvFile()
 
@@ -174,6 +179,12 @@ function createMailer() {
     port: SMTP_PORT,
     secure: SMTP_SECURE,
     family: 4,
+    lookup(hostname, options, callback) {
+      return dns.lookup(hostname, { ...options, family: 4, all: false }, callback)
+    },
+    tls: {
+      servername: SMTP_HOST,
+    },
     auth: {
       user: SMTP_USER,
       pass: SMTP_PASS,
