@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { callClaude, extractJSON } from '../lib'
+import { analyseRole, extractJSON } from '../lib'
 import { Topbar, RiskLegend } from '../components/UI'
 import StepRole from './StepRole'
 import StepTasks from './StepTasks'
@@ -23,18 +23,10 @@ export default function AppPage() {
     setLoadingTasks(true)
     setStep(1)
     try {
-      const raw = await callClaude(
-        'You are an AI workforce analyst. Return ONLY valid JSON — no markdown, no explanation.',
-        `Job title: "${info.jobTitle}", Industry: "${info.industryFinal}".
-Generate a realistic list of 6-8 day-to-day tasks this person does.
-For each task assign:
-- task_type: one of routine, repetitive, rule-based, creative, strategic, human-centred
-- risk: one of very-high, high, medium, low-med, low, very-low
-
-Return ONLY a JSON array:
-[{"task":"...", "task_type":"...", "risk":"..."}, ...]`,
-        2000
-      )
+      const raw = await analyseRole('tasks', {
+        jobTitle: info.jobTitle,
+        industryFinal: info.industryFinal,
+      })
       const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
       const start = cleaned.indexOf('[')
       const end   = cleaned.lastIndexOf(']')
@@ -59,47 +51,12 @@ Return ONLY a JSON array:
     setReport(null)
     setStep(2)
 
-    const taskSummary = tasks.map(t => `- ${t.task} [${t.task_type}, ${t.risk}]`).join('\n')
-
     try {
-      const raw = await callClaude(
-        'You are an AI workforce strategist. Return ONLY a valid JSON object. No markdown, no text outside JSON.',
-        `Role: "${roleInfo.jobTitle}", Industry: "${roleInfo.industryFinal}".
-
-Task classification framework:
-- routine / repetitive / rule-based → highly automatable, lean toward higher AI risk
-- creative / strategic / human-centred → harder to automate, lean toward lower AI risk
-The user has reviewed and confirmed the task type and risk level for each task below — treat these as ground truth and let them directly inform your analysis, timelines, and recommendations.
-
-Tasks (format: task name [task_type, risk]):
-${taskSummary}
-
-Return this JSON (moderately concise, max 2 tools per task, max 5 top_tools):
-{
-  "overall_risk": "very-high|high|medium|low-med|low|very-low",
-  "summary": "2-3 sentences on overall AI exposure",
-  "industry_note": "1-2 sentences on AI dynamics in this industry",
-  "task_breakdown": [
-    {
-      "task": "exact task name",
-      "risk": "very-high|high|medium|low-med|low|very-low",
-      "why": "1-2 short sentences why this risk level",
-      "timeline": "Now|1-2 yrs|3-5 yrs",
-      "action": "one specific action to take in 1-2 short sentences",
-      "tools": [{"name":"Tool","purpose":"short phrase","url":"https://example.com"}]
-    }
-  ],
-  "future_proof_guide": {
-    "immediate": ["short actions"],
-    "short_term": ["short actions"],
-    "long_term": ["short actions"],
-    "skills_to_build": ["short skills"],
-    "top_tools": [{"name":"Tool","category":"cat","why":"1-2 short sentences","url":"https://example.com"}]
-  }
-}
-Only return the JSON. Keep strings brief and practical, especially the future-proofing and tools sections.`,
-        8000
-      )
+      const raw = await analyseRole('report', {
+        jobTitle: roleInfo.jobTitle,
+        industryFinal: roleInfo.industryFinal,
+        tasks,
+      })
       const parsed = extractJSON(raw)
       setReport(parsed)
       setReportError('')

@@ -33,20 +33,16 @@ export const INDUSTRIES = [
   'Hospitality & Tourism', 'Transport & Logistics', 'Energy & Utilities',
 ]
 
-export async function callClaude(systemPrompt, userPrompt, maxTokens = 2000) {
-  console.log('[API] callClaude request', { maxTokens })
-  const res = await fetch('/api/anthropic/messages', {
+export async function analyseRole(action, payload) {
+  console.log('[API] analyseRole request', { action })
+  const res = await fetch('/api/analyse-role', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      max_tokens: maxTokens,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userPrompt }],
-    }),
+    body: JSON.stringify({ action, ...payload }),
   })
 
   const data = await res.json().catch(() => null)
-  console.log('[API] callClaude response', { status: res.status, ok: res.ok })
+  console.log('[API] analyseRole response', { status: res.status, ok: res.ok })
 
   if (!res.ok) {
     if (res.status === 529) {

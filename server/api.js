@@ -1,6 +1,7 @@
 import http from 'node:http'
 import fs from 'node:fs'
 import path from 'node:path'
+import crypto from 'node:crypto'
 import { URL } from 'node:url'
 
 loadEnvFile()
@@ -9,12 +10,31 @@ const PORT = Number(process.env.PORT || process.env.API_PORT || 8787)
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6'
 const ANTHROPIC_VERSION = process.env.ANTHROPIC_VERSION || '2023-06-01'
+const DEFAULT_ALLOWED_ORIGINS = [
+  'http://localhost:5173',
+  'http://127.0.0.1:5173',
+  'http://localhost:8787',
+  'http://127.0.0.1:8787',
+]
+const ALLOWED_ORIGINS = new Set(
+  (process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : DEFAULT_ALLOWED_ORIGINS)
+    .map(origin => origin.trim())
+    .filter(Boolean)
+)
+const ANALYSE_ROLE_ROUTE = '/api/analyse-role'
 const RESEND_API_KEY = process.env.RESEND_API_KEY
 const RESEND_FROM = process.env.RESEND_FROM || 'JRA Job Role Analyser <no-reply@jobroleanalyser.com>'
-const EMAIL_TO = process.env.EMAIL_TO || 'khandaiyan13@gmail.com'
+const EMAIL_TO = process.env.EMAIL_TO || 'alikhantauqeer26@gmail.com'
 const DIST_DIR = path.resolve(process.cwd(), 'dist')
 const INDEX_FILE = path.join(DIST_DIR, 'index.html')
 const RETRYABLE_STATUS_CODES = new Set([429, 500, 502, 503, 504, 529])
+const SESSION_COOKIE_NAME = 'jra_session'
+const DEFAULT_RATE_LIMIT_WINDOW_MS = readPositiveInteger(process.env.RATE_LIMIT_WINDOW_MS, 60_000)
+const DEFAULT_ANALYSE_ROLE_LIMIT = readPositiveInteger(process.env.ANALYSE_ROLE_LIMIT, 6)
+const DEFAULT_REPORT_REQUEST_LIMIT = readPositiveInteger(process.env.REPORT_REQUEST_LIMIT, 3)
+const TASK_TYPES = new Set(['routine', 'repetitive', 'rule-based', 'creative', 'strategic', 'human-centred'])
+const RISK_LEVELS = new Set(['very-high', 'high', 'medium', 'low-med', 'low', 'very-low'])
+const rateLimitBuckets = new Map()
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -58,6 +78,11 @@ function loadEnvFile() {
   }
 }
 
+function readPositiveInteger(value, fallback) {
+  const parsed = Number.parseInt(String(value ?? '').trim(), 10)
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback
+}
+
 function formatMailError(error) {
   if (error?.status === 401 || error?.status === 403) {
     return 'Resend rejected the request. Check RESEND_API_KEY and confirm the from address is verified in Resend.'
@@ -73,11 +98,245 @@ function formatMailError(error) {
 function sendJson(res, statusCode, payload) {
   res.writeHead(statusCode, {
     'Content-Type': 'application/json',
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
   })
   res.end(JSON.stringify(payload))
+}
+
+function sendJsonWithHeaders(res, statusCode, payload, headers = {}) {
+  res.writeHead(statusCode, {
+    'Content-Type': 'application/json',
+    ...headers,
+  })
+  res.end(JSON.stringify(payload))
+}
+
+function parseCookies(cookieHeader = '') {
+  return Object.fromEntries(
+    cookieHeader
+      .split(';')
+      .map(part => part.trim())
+      .filter(Boolean)
+      .map(part => {
+        const index = part.indexOf('=')
+        if (index === -1) return [part, '']
+        return [part.slice(0, index), decodeURIComponent(part.slice(index + 1))]
+      })
+  )
+}
+
+function serializeCookie(name, value, options = {}) {
+  const parts = [`${name}=${encodeURIComponent(value)}`]
+
+  if (options.maxAge != null) parts.push(`Max-Age=${options.maxAge}`)
+  if (options.path) parts.push(`Path=${options.path}`)
+  if (options.httpOnly) parts.push('HttpOnly')
+  if (options.sameSite) parts.push(`SameSite=${options.sameSite}`)
+  if (options.secure) parts.push('Secure')
+
+  return parts.join('; ')
+}
+
+function getOrCreateSession(req) {
+  const cookies = parseCookies(req.headers.cookie || '')
+  const existing = cookies[SESSION_COOKIE_NAME]
+  const sessionId = existing || crypto.randomUUID()
+  const sessionCreated = !existing
+  const cookieHeader = existing
+    ? null
+    : serializeCookie(SESSION_COOKIE_NAME, sessionId, {
+        path: '/',
+        httpOnly: true,
+        sameSite: 'Lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 30,
+      })
+
+  return { sessionId, cookieHeader, sessionCreated }
+}
+
+function getClientKey(req, sessionId) {
+  const forwardedFor = String(req.headers['x-forwarded-for'] || '')
+  const forwardedIp = forwardedFor.split(',')[0].trim()
+  return sessionId || forwardedIp || req.socket.remoteAddress || 'unknown'
+}
+
+function formatSessionLog(sessionId) {
+  return sessionId ? `${sessionId.slice(0, 8)}…` : 'none'
+}
+
+function rateLimit(req, routeKey, options = {}) {
+  const session = getOrCreateSession(req)
+  const { sessionId, cookieHeader, sessionCreated } = session
+  const clientKey = getClientKey(req, sessionId)
+  const windowMs = options.windowMs ?? DEFAULT_RATE_LIMIT_WINDOW_MS
+  const limit = options.limit ?? DEFAULT_ANALYSE_ROLE_LIMIT
+  const now = Date.now()
+  const bucketKey = `${routeKey}:${clientKey}`
+  const existing = rateLimitBuckets.get(bucketKey) || []
+  const recent = existing.filter(timestamp => now - timestamp < windowMs)
+  recent.push(now)
+  rateLimitBuckets.set(bucketKey, recent)
+
+  if (recent.length > limit) {
+    return {
+      limited: true,
+      retryAfterSeconds: Math.max(1, Math.ceil(windowMs / 1000)),
+      cookieHeader,
+      sessionCreated,
+      requestCount: recent.length,
+      limit,
+    }
+  }
+
+  return {
+    limited: false,
+    sessionId,
+    cookieHeader,
+    sessionCreated,
+    requestCount: recent.length,
+    limit,
+  }
+}
+
+function isAllowedOrigin(origin) {
+  if (!origin) return true
+  return ALLOWED_ORIGINS.has(origin)
+}
+
+function rejectDisallowedOrigin(req, res) {
+  if (isAllowedOrigin(req.headers.origin)) return false
+
+  sendJson(res, 403, { error: 'Origin not allowed' })
+  return true
+}
+
+function ensureJsonContentType(req, res) {
+  const contentType = String(req.headers['content-type'] || '')
+  if (contentType.includes('application/json')) return false
+
+  sendJson(res, 415, { error: 'Content-Type must be application/json' })
+  return true
+}
+
+function normalizeText(value, maxLength) {
+  return String(value ?? '').trim().slice(0, maxLength)
+}
+
+function sanitizeTaskList(tasks) {
+  if (!Array.isArray(tasks) || tasks.length === 0 || tasks.length > 20) {
+    throw new Error('Tasks must be a non-empty array with no more than 20 items.')
+  }
+
+  return tasks.map((task, index) => {
+    const taskName = normalizeText(task?.task, 160)
+    const taskType = normalizeText(task?.task_type, 40)
+    const risk = normalizeText(task?.risk, 20)
+
+    if (!taskName) {
+      throw new Error(`Task ${index + 1} is missing a task name.`)
+    }
+
+    if (!TASK_TYPES.has(taskType)) {
+      throw new Error(`Task ${index + 1} has an invalid task type.`)
+    }
+
+    if (!RISK_LEVELS.has(risk)) {
+      throw new Error(`Task ${index + 1} has an invalid risk level.`)
+    }
+
+    return {
+      task: taskName,
+      task_type: taskType,
+      risk,
+    }
+  })
+}
+
+function buildRoleAnalysisRequest(body) {
+  const action = normalizeText(body.action, 20)
+
+  if (action === 'tasks') {
+    const jobTitle = normalizeText(body.jobTitle, 120)
+    const industryFinal = normalizeText(body.industryFinal, 120)
+
+    if (!jobTitle || !industryFinal) {
+      throw new Error('jobTitle and industryFinal are required.')
+    }
+
+    return {
+      model: ANTHROPIC_MODEL,
+      max_tokens: 2000,
+      system: 'You are an AI workforce analyst. Return ONLY valid JSON. No markdown, no explanation.',
+      messages: [{
+        role: 'user',
+        content: `Job title: "${jobTitle}", Industry: "${industryFinal}".
+Generate a realistic list of 6-8 day-to-day tasks this person does.
+For each task assign:
+- task_type: one of routine, repetitive, rule-based, creative, strategic, human-centred
+- risk: one of very-high, high, medium, low-med, low, very-low
+
+Return ONLY a JSON array:
+[{"task":"...", "task_type":"...", "risk":"..."}, ...]`,
+      }],
+    }
+  }
+
+  if (action === 'report') {
+    const jobTitle = normalizeText(body.jobTitle, 120)
+    const industryFinal = normalizeText(body.industryFinal, 120)
+    const tasks = sanitizeTaskList(body.tasks)
+
+    if (!jobTitle || !industryFinal) {
+      throw new Error('jobTitle and industryFinal are required.')
+    }
+
+    const taskSummary = tasks.map(task => `- ${task.task} [${task.task_type}, ${task.risk}]`).join('\n')
+
+    return {
+      model: ANTHROPIC_MODEL,
+      max_tokens: 8000,
+      system: 'You are an AI workforce strategist. Return ONLY a valid JSON object. No markdown, no text outside JSON.',
+      messages: [{
+        role: 'user',
+        content: `Role: "${jobTitle}", Industry: "${industryFinal}".
+
+Task classification framework:
+- routine / repetitive / rule-based → highly automatable, lean toward higher AI risk
+- creative / strategic / human-centred → harder to automate, lean toward lower AI risk
+The user has reviewed and confirmed the task type and risk level for each task below — treat these as ground truth and let them directly inform your analysis, timelines, and recommendations.
+
+Tasks (format: task name [task_type, risk]):
+${taskSummary}
+
+Return this JSON (moderately concise, max 2 tools per task, max 5 top_tools):
+{
+  "overall_risk": "very-high|high|medium|low-med|low|very-low",
+  "summary": "2-3 sentences on overall AI exposure",
+  "industry_note": "1-2 sentences on AI dynamics in this industry",
+  "task_breakdown": [
+    {
+      "task": "exact task name",
+      "risk": "very-high|high|medium|low-med|low|very-low",
+      "why": "1-2 short sentences why this risk level",
+      "timeline": "Now|1-2 yrs|3-5 yrs",
+      "action": "one specific action to take in 1-2 short sentences",
+      "tools": [{"name":"Tool","purpose":"short phrase","url":"https://example.com"}]
+    }
+  ],
+  "future_proof_guide": {
+    "immediate": ["short actions"],
+    "short_term": ["short actions"],
+    "long_term": ["short actions"],
+    "skills_to_build": ["short skills"],
+    "top_tools": [{"name":"Tool","category":"cat","why":"1-2 short sentences","url":"https://example.com"}]
+  }
+}
+Only return the JSON. Keep strings brief and practical, especially the future-proofing and tools sections.`,
+      }],
+    }
+  }
+
+  throw new Error('Unsupported analysis action.')
 }
 
 function sendFile(res, filePath) {
@@ -186,7 +445,7 @@ async function sendReportEmail(mailOptions) {
   })
 
   if (!response.ok) {
-    let details = ''
+    let details
     try {
       const data = await response.json()
       details = data?.message || data?.error || ''
@@ -206,12 +465,13 @@ const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
 
   if (req.method === 'OPTIONS') {
-    res.writeHead(204, {
-      'Access-Control-Allow-Origin': '*',
-      'Access-Control-Allow-Methods': 'POST, OPTIONS',
-      'Access-Control-Allow-Headers': 'Content-Type',
-    })
+    if (rejectDisallowedOrigin(req, res)) return
+    res.writeHead(204)
     res.end()
+    return
+  }
+
+  if (req.method === 'POST' && rejectDisallowedOrigin(req, res)) {
     return
   }
 
@@ -222,6 +482,32 @@ const server = http.createServer(async (req, res) => {
 
   if (req.method === 'POST' && url.pathname === '/api/report-request') {
     try {
+      const limitState = rateLimit(req, 'report-request', {
+        limit: DEFAULT_REPORT_REQUEST_LIMIT,
+        windowMs: DEFAULT_RATE_LIMIT_WINDOW_MS,
+      })
+
+      console.log('[API] /api/report-request session', {
+        session: formatSessionLog(limitState.sessionId),
+        hasCookie: Boolean(parseCookies(req.headers.cookie || '')[SESSION_COOKIE_NAME]),
+        newSession: limitState.sessionCreated,
+        rateLimitCount: `${limitState.requestCount}/${limitState.limit}`,
+        remainingRequests: Math.max(0, limitState.limit - limitState.requestCount),
+      })
+
+      if (limitState.limited) {
+        const headers = {
+          'Retry-After': String(limitState.retryAfterSeconds),
+        }
+
+        if (limitState.cookieHeader) {
+          headers['Set-Cookie'] = limitState.cookieHeader
+        }
+
+        sendJsonWithHeaders(res, 429, { error: 'Too many report requests. Try again later.' }, headers)
+        return
+      }
+
       const body = await readJsonBody(req)
       const name = String(body.name || '').trim()
       const email = String(body.email || '').trim()
@@ -263,7 +549,12 @@ const server = http.createServer(async (req, res) => {
         `,
       })
 
-      sendJson(res, 200, { ok: true })
+      const headers = {}
+      if (limitState.cookieHeader) {
+        headers['Set-Cookie'] = limitState.cookieHeader
+      }
+
+      sendJsonWithHeaders(res, 200, { ok: true }, headers)
     } catch (error) {
       console.error('[API] /api/report-request error', error)
       sendJson(res, 500, { error: formatMailError(error) })
@@ -271,7 +562,7 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
-  if (req.method !== 'POST' || url.pathname !== '/api/anthropic/messages') {
+  if (req.method !== 'POST' || url.pathname !== ANALYSE_ROLE_ROUTE) {
     if (req.method === 'GET' && fs.existsSync(INDEX_FILE)) {
       const assetPath = url.pathname === '/' ? INDEX_FILE : path.join(DIST_DIR, url.pathname)
 
@@ -288,6 +579,10 @@ const server = http.createServer(async (req, res) => {
     return
   }
 
+  if (ensureJsonContentType(req, res)) {
+    return
+  }
+
   if (!ANTHROPIC_API_KEY) {
     sendJson(res, 500, {
       error: 'Missing ANTHROPIC_API_KEY. Set it in your environment before starting the API server.',
@@ -296,17 +591,49 @@ const server = http.createServer(async (req, res) => {
   }
 
   try {
-    const body = await readJsonBody(req)
-    console.log('[API] /api/anthropic/messages request', {
-      max_tokens: body.max_tokens ?? 2000,
-      messages: Array.isArray(body.messages) ? body.messages.length : 0,
+    const limitState = rateLimit(req, 'analyse-role', {
+      limit: DEFAULT_ANALYSE_ROLE_LIMIT,
+      windowMs: DEFAULT_RATE_LIMIT_WINDOW_MS,
     })
 
-    const upstreamRes = await callAnthropicWithRetry(body)
+    console.log('[API] /api/analyse-role session', {
+      session: formatSessionLog(limitState.sessionId),
+      hasCookie: Boolean(parseCookies(req.headers.cookie || '')[SESSION_COOKIE_NAME]),
+      newSession: limitState.sessionCreated,
+      rateLimitCount: `${limitState.requestCount}/${limitState.limit}`,
+      remainingRequests: Math.max(0, limitState.limit - limitState.requestCount),
+    })
+
+    if (limitState.limited) {
+      const headers = {
+        'Retry-After': String(limitState.retryAfterSeconds),
+      }
+
+      if (limitState.cookieHeader) {
+        headers['Set-Cookie'] = limitState.cookieHeader
+      }
+
+      sendJsonWithHeaders(res, 429, { error: 'Too many analysis requests. Try again later.' }, headers)
+      return
+    }
+
+    const body = await readJsonBody(req)
+    const upstreamRequest = buildRoleAnalysisRequest(body)
+
+    console.log('[API] /api/analyse-role request', {
+      action: body.action,
+      taskCount: Array.isArray(body.tasks) ? body.tasks.length : 0,
+    })
+
+    const upstreamRes = await callAnthropicWithRetry(upstreamRequest)
 
     if (upstreamRes.status === 529) {
       console.warn('[API] Anthropic overloaded (529) after all retries')
-      sendJson(res, 529, { error: 'The app is under heavy load — please try again in a few minutes.' })
+      const headers = {}
+      if (limitState.cookieHeader) {
+        headers['Set-Cookie'] = limitState.cookieHeader
+      }
+      sendJsonWithHeaders(res, 529, { error: 'The app is under heavy load — please try again in a few minutes.' }, headers)
       return
     }
 
@@ -319,14 +646,19 @@ const server = http.createServer(async (req, res) => {
       payload = { error: text || `Anthropic returned status ${upstreamRes.status}` }
     }
 
-    console.log('[API] /api/anthropic/messages response', {
+    console.log('[API] /api/analyse-role response', {
       status: upstreamRes.status,
       ok: upstreamRes.ok,
     })
 
-    sendJson(res, upstreamRes.status, payload)
+    const headers = {}
+    if (limitState.cookieHeader) {
+      headers['Set-Cookie'] = limitState.cookieHeader
+    }
+
+    sendJsonWithHeaders(res, upstreamRes.status, payload, headers)
   } catch (error) {
-    console.error('[API] /api/anthropic/messages error', error)
+    console.error('[API] /api/analyse-role error', error)
     sendJson(res, 500, { error: error.message || 'Unexpected server error' })
   }
 })

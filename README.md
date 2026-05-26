@@ -4,7 +4,7 @@ This app now calls Anthropic through a local Node API instead of directly from t
 
 ## Why this fixes CORS
 
-The browser no longer sends requests to `https://api.anthropic.com/v1/messages` directly. It calls `/api/anthropic/messages` on the same origin, and Vite proxies that to the local API server during development.
+The browser no longer sends raw Anthropic request payloads. It calls `/api/analyse-role` on the same origin, and Vite proxies that to the local API server during development.
 
 ## Setup
 
@@ -41,9 +41,9 @@ npm run dev
 - Dev proxy: `vite.config.js`
 - Backend API: `server/api.js`
 
-The backend sends the required Anthropic headers:
+The backend now builds the Anthropic request shape server-side and sends the required Anthropic headers:
 
 - `x-api-key`
 - `anthropic-version`
 
-That keeps the API key out of browser code and removes the CORS failure in local development.
+That keeps the API key and the model/prompt shape out of browser code.
