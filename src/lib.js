@@ -33,9 +33,15 @@ export const INDUSTRIES = [
   'Hospitality & Tourism', 'Transport & Logistics', 'Energy & Utilities',
 ]
 
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/$/, '')
+
+function apiUrl(path) {
+  return API_BASE_URL ? `${API_BASE_URL}${path}` : path
+}
+
 export async function analyseRole(action, payload) {
   console.log('[API] analyseRole request', { action })
-  const res = await fetch('/api/analyse-role', {
+  const res = await fetch(apiUrl('/api/analyse-role'), {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
