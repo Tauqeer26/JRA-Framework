@@ -37,6 +37,7 @@ export async function analyseRole(action, payload) {
   console.log('[API] analyseRole request', { action })
   const res = await fetch('/api/analyse-role', {
     method: 'POST',
+    credentials: 'include',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ action, ...payload }),
   })

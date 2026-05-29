@@ -203,6 +203,18 @@ function isAllowedOrigin(origin) {
   return ALLOWED_ORIGINS.has(origin)
 }
 
+function getCorsHeaders(origin) {
+  if (!origin || !isAllowedOrigin(origin)) return {}
+
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Credentials': 'true',
+    'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    Vary: 'Origin',
+  }
+}
+
 function rejectDisallowedOrigin(req, res) {
   if (isAllowedOrigin(req.headers.origin)) return false
 
@@ -463,10 +475,15 @@ async function sendReportEmail(mailOptions) {
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host}`)
+  const corsHeaders = getCorsHeaders(req.headers.origin)
+
+  if (Object.keys(corsHeaders).length > 0) {
+    Object.entries(corsHeaders).forEach(([key, value]) => res.setHeader(key, value))
+  }
 
   if (req.method === 'OPTIONS') {
     if (rejectDisallowedOrigin(req, res)) return
-    res.writeHead(204)
+    res.writeHead(204, corsHeaders)
     res.end()
     return
   }
